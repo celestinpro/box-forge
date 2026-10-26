@@ -1,4 +1,5 @@
 import { h, numberField, segmented } from "./dom.js";
+import { snapFields } from "./snapFields.js";
 import { CARD_PRESETS } from "../models/config.js";
 
 const MAX_POCKETS = 8;
@@ -73,9 +74,13 @@ export function quickDrawForm(params, update, rerender) {
     segmented({
       label: "Lid",
       value: params.lidType,
-      options: [["lid", "Slide-over lid"], ["cover", "Flat cover"], ["none", "No lid"]],
-      onChange: (v) => update({ lidType: v }),
+      options: [["lid", "Slide"], ["snap", "Snap"], ["cover", "Cover"], ["none", "None"]],
+      onChange: (v) => {
+        update({ lidType: v });
+        rerender();
+      },
     }),
+    params.lidType === "snap" ? snapFields(params, update) : null,
     pockets.length > 1
       ? segmented({
           label: "Shorter cards sit",
@@ -91,7 +96,7 @@ export function quickDrawForm(params, update, rerender) {
       numberField({ label: "Card clearance", value: params.cardTolerance, hint: "Added to the card size so cards drop in easily. 2 mm suits most printers.", onChange: (v) => update({ cardTolerance: v }) }),
       numberField({ label: "Pocket corner radius", value: params.innerFillet, hint: "Shrinks automatically for narrow cards.", onChange: (v) => update({ innerFillet: v }) }),
       numberField({ label: "Finger slot width", value: params.fingerSlot, hint: "Shrinks automatically for narrow cards. 0 for no slot.", onChange: (v) => update({ fingerSlot: v }) }),
-      numberField({ label: "Lid clearance", value: params.lidTolerance, hint: "Increase if the lid is too tight on your printer.", onChange: (v) => update({ lidTolerance: v }) })
+      numberField({ label: "Slide-over lid clearance", value: params.lidTolerance, hint: "Increase if the slide-over lid is too tight on your printer.", onChange: (v) => update({ lidTolerance: v }) })
     )
   );
 }

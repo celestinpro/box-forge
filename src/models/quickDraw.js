@@ -11,7 +11,7 @@
 
 import { drawRoundedRectangle, makeBaseBox, makeCylinder } from "replicad";
 import { clamp, safeFillet, num, requireRange, atZ } from "./util.js";
-import { slipLidSize, buildSlipLid } from "./parts.js";
+import { slipLidSize, buildSlipLid, snapLidSize, snapBody, buildSnapLid } from "./parts.js";
 import { QUICK_DRAW_DEFAULTS } from "./config.js";
 
 export { CARD_PRESETS, QUICK_DRAW_DEFAULTS } from "./config.js";
@@ -60,6 +60,10 @@ export function quickDrawLayout(input) {
 
   const outerFillet = Math.min(...cells.map((c) => c.fillet)) + wall;
   const lid = slipLidSize({ x: totalX, y: totalY, z: totalZ, fillet: outerFillet, wall, tolerance: lidTol });
+  const snap =
+    p.lidType === "snap"
+      ? snapLidSize({ x: totalX, y: totalY, z: totalZ, fillet: outerFillet, wall, belt: num(p.snapBelt, 1.6), collar: num(p.snapCollar, 6), clearance: num(p.snapClearance, 0.15) })
+      : null;
 
   return {
     params: { ...p, wallThickness: wall, cardTolerance: cardTol, lidTolerance: lidTol },
@@ -70,12 +74,13 @@ export function quickDrawLayout(input) {
     totalZ,
     outerFillet,
     lid,
+    snap,
   };
 }
 
 function buildTray(L, warnings) {
   const { wall, cells, totalX, totalY, totalZ, outerFillet } = L;
-  let tray = drawRoundedRectangle(totalX, totalY, outerFillet).sketchOnPlane().extrude(totalZ);
+  let tray = L.snap ? snapBody(L.snap) : drawRoundedRectangle(totalX, totalY, outerFillet).sketchOnPlane().extrude(totalZ);
 
   cells.forEach((c, i) => {
     let pocket = (c.fillet > 0.05 ? drawRoundedRectangle(c.x, c.y, c.fillet) : drawRoundedRectangle(c.x, c.y))
@@ -89,7 +94,7 @@ function buildTray(L, warnings) {
     if (c.slot > 0) {
       const r = c.slot / 2;
       const bottom = c.floorZ + Math.min(2, c.deckHeight / 4);
-      const len = totalY + 4;
+      const len = totalY + 2 * (L.snap?.belt ?? 0) + 4;
       const rect = makeBaseBox(c.slot, len, totalZ + 1 - (bottom + r)).translate([c.cx, 0, bottom + r]);
       const round = makeCylinder(r, len, [c.cx, -len / 2, bottom + r], [0, 1, 0]);
       tray = tray.cut(rect.fuse(round));
@@ -142,14 +147,18 @@ export function buildQuickDraw(params) {
   const parts = [{ name: "tray", shape: buildTray(L, warnings) }];
   if (L.params.lidType === "lid") parts.push({ name: "lid", shape: buildLid(L, warnings) });
   if (L.params.lidType === "cover") parts.push({ name: "cover", shape: buildCover(L, warnings) });
+  if (L.params.lidType === "snap") parts.push({ name: "lid", shape: buildSnapLid(L.snap, warnings) });
   return { parts, layout: L, warnings };
 }
 
 /** Human-readable summary of the derived dimensions. */
 export function describeQuickDraw(L) {
   const f = (n) => (Math.round(n * 10) / 10).toString();
-  const lines = [`Tray ${f(L.totalX)} × ${f(L.totalY)} × ${f(L.totalZ)} mm`];
+  const lines = L.snap
+    ? [`Box ${f(L.snap.outerX)} × ${f(L.snap.outerY)} × ${f(L.snap.closedHeight)} mm with the snap lid on`]
+    : [`Tray ${f(L.totalX)} × ${f(L.totalY)} × ${f(L.totalZ)} mm`];
   if (L.params.lidType === "lid") lines.push(`Lid ${f(L.lid.outerX)} × ${f(L.lid.outerY)} × ${f(L.lid.outerZ)} mm`);
+  if (L.snap) lines.push(`Snap lid ${f(L.snap.outerX)} × ${f(L.snap.outerY)} × ${f(L.snap.lidHeight)} mm, clicks over a ${f(L.snap.collar)} mm collar`);
   L.cells.forEach((c, i) =>
     lines.push(`Pocket ${i + 1}: ${f(c.y)} × ${f(c.x)} × ${f(c.deckHeight)} mm, finger slot ${c.slot ? f(c.slot) + " mm" : "none"}`)
   );
