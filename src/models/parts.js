@@ -51,7 +51,7 @@ export function buildSlipLid(lid, wall, warnings, notchAxis = "y") {
 const SLIDE_SLOPE = Math.tan((30 * Math.PI) / 180); // sides lean 60° from horizontal
 
 /** Every dimension of a sliding lid for a box X × Y × H with the given walls. */
-export function slidingLidSize({ x, y, z, wall, thickness = 3, clearance = 0.12, bump = 0.35, ledge = 0 }) {
+export function slidingLidSize({ x, y, z, wall, thickness = 3, clearance = 0.12, ledge = 0 }) {
   const t = clamp(thickness, 2, 6);
   const groove = clamp(Math.min(1, wall - 0.8), 0.4, 1); // how far the groove cuts into the side walls
   const run = SLIDE_SLOPE * t; // how far the lid's sides lean in over its thickness
@@ -69,14 +69,15 @@ export function slidingLidSize({ x, y, z, wall, thickness = 3, clearance = 0.12,
   if (length < 15) throw new Error("The box is too short for a sliding lid.");
   const slotLength = Math.min(12, length * 0.35);
   return {
-    x, y, z, wall, t, clearance, bump, groove, run, zb, grooveHalf, lidHalf, lidTopHalf, front, back, length,
+    x, y, z, wall, t, clearance, groove, run, zb, grooveHalf, lidHalf, lidTopHalf, front, back, length,
     stopY,
     ledge: clamp(ledge, 0, 2),
     slotLength,
     slotWidth: 0.8,
     fingerTop: 0.9, // finger width at the top of the lid
     detentY: back - Math.min(5.5, slotLength * 0.45),
-    detentR: 1.0,
+    bumpDepth: groove - 0.08, // at the groove floor, as in the reference (0.92 of a 1 mm groove)
+    bumpFlat: 1.16,
   };
 }
 
@@ -88,18 +89,29 @@ function dovetail(half, zBottom, height, slope, y0, y1) {
   return profile.sketchOnPlane("XZ").extrude(y1 - y0).translate([0, y1, zBottom]);
 }
 
-/** Bump on each groove wall (box) or matching notch (lid): a cylinder along the slanted face. */
-function detentCylinders(S, radius) {
-  const n = Math.hypot(1, SLIDE_SLOPE);
-  const out = S.detentR - S.bump; // cylinder axis sits this far outside the groove face
+/**
+ * Click bump (box) or matching notch (lid), as in the reference box: a block
+ * with vertical faces at the bottom of each groove, filling the groove's
+ * undercut almost back to the wall's inner face. Seen from above it is a
+ * trapezoid: a short flat top with 45° ramps at each end, so the lid's
+ * fingers ride up and over it. `shift` moves the shape towards the middle of
+ * the box; the lid's notch is the bump shifted 0.3 mm, as in the reference.
+ */
+function detentBlocks(S, shift = 0) {
+  const inner = S.grooveHalf - S.bumpDepth - shift; // |x| of the flat top
+  const outer = S.grooveHalf + 1 - shift; // reaches into the wall so it fuses
+  const flat = S.bumpFlat / 2;
+  const ramp = outer - inner; // 45°: as long as it is deep
+  const z0 = S.zb - 0.01;
   const shapes = [];
   for (const side of [1, -1]) {
-    // Face at the bottom of the groove, then step outward along the face normal.
-    const px = side * (S.grooveHalf + out / n);
-    const pz = S.zb + (SLIDE_SLOPE * out) / n;
-    const dir = [-side * SLIDE_SLOPE / n, 0, 1 / n];
-    const start = [px - dir[0] * 2, S.detentY, pz - dir[2] * 2];
-    shapes.push(makeCylinder(radius, S.t / dir[2] + 4, start, dir));
+    const footprint = draw([side * outer, S.detentY - flat - ramp])
+      .lineTo([side * inner, S.detentY - flat])
+      .lineTo([side * inner, S.detentY + flat])
+      .lineTo([side * outer, S.detentY + flat + ramp])
+      .close();
+    // Up to the top of the box only; the groove's slanted face hides the rest.
+    shapes.push(footprint.sketchOnPlane("XY", z0).extrude(S.z - z0));
   }
   return shapes;
 }
@@ -129,8 +141,8 @@ export function cutSlidingLidWell(body, S) {
     }
   }
   // The click bumps only exist inside the groove: trim each one to the space
-  // the groove cut away, so nothing shows on the outside of the walls.
-  for (const c of detentCylinders(S, S.detentR)) box = box.fuse(c.intersect(well.clone()));
+  // the groove cut away, so nothing shows outside the walls or above the rim.
+  for (const b of detentBlocks(S)) box = box.fuse(b.intersect(well.clone()));
   return box;
 }
 
@@ -148,17 +160,21 @@ export function buildSlidingLid(S, warnings) {
     ]);
     lid = lid.cut(slot);
   }
-  // Angle the back corners so the lid finds the grooves easily.
+  // Angle the back corners so the lid finds the grooves easily: in the
+  // reference the cut runs 2.8 mm along the lid and 1.85 mm across.
+  const k = Math.min(1, S.slotLength / 12);
+  const along = 2.8 * k;
+  const across = 1.85 * k;
   for (const side of [1, -1]) {
-    const c = Math.min(2.5, S.slotLength / 3);
-    const corner = draw([side * (S.lidHalf + 1), S.back - c])
-      .lineTo([side * (S.lidHalf + 1), S.back + 1])
-      .lineTo([side * (S.lidHalf - c - 1), S.back + 1])
-      .close();
+    const a = [side * S.lidHalf, S.back - along];
+    const b = [side * (S.lidHalf - across), S.back];
+    const a2 = [a[0] + (a[0] - b[0]), a[1] + (a[1] - b[1])]; // extend the cut line past both ends
+    const b2 = [b[0] + (b[0] - a[0]) * 0.5, b[1] + (b[1] - a[1]) * 0.5];
+    const corner = draw(a2).lineTo(b2).lineTo([a2[0], b2[1]]).close();
     lid = lid.cut(corner.sketchOnPlane("XY", S.zb - 1).extrude(S.t + 2));
   }
-  // Notches in the fingers that the groove bumps click into.
-  for (const c of detentCylinders(S, S.detentR + 0.1)) lid = lid.cut(c);
+  // Notches in the fingers that the groove bumps click into (0.3 mm around the bump).
+  for (const b of detentBlocks(S, 0.3)) lid = lid.cut(b);
 
   // Sunken arrow pointing the way the lid closes, as a thumb grip.
   const w = Math.min(2 * (slotOuter - S.slotWidth) - 4, 26);

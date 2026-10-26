@@ -4,7 +4,7 @@ import { test, before } from "node:test";
 import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
 import opencascade from "replicad-opencascadejs";
-import { setOC, getOC, measureVolume } from "replicad";
+import { setOC, getOC, measureVolume, makeBaseBox } from "replicad";
 import { MODELS } from "../src/models/index.js";
 
 // OpenCascade logs "failed to compute a normal" while filleting curved edges;
@@ -162,6 +162,19 @@ function slidingFit(model, params) {
   const [[x0, y0], [x1, y1]] = tray.boundingBox.bounds;
   assert.ok(Math.abs(x1 - x0 - S.x) < 0.01, `tray is ${(x1 - x0).toFixed(2)} mm wide, expected ${S.x}`);
   assert.ok(Math.abs(y1 - y0 - S.y) < 0.01, `tray is ${(y1 - y0).toFixed(2)} mm deep, expected ${S.y}`);
+  // The click bump stays low in the groove, like the reference: above
+  // ~1.7 mm over the groove floor the wall at the bump must look exactly like
+  // the wall elsewhere (no spike reaching the rim).
+  const probe = (y) => {
+    const zLow = S.zb + 1.8;
+    const block = makeBaseBox(4, 3, S.z - zLow).translate([S.grooveHalf - 1, y, zLow]);
+    try {
+      return measureVolume(tray.clone().intersect(block));
+    } catch {
+      return 0;
+    }
+  };
+  assert.ok(Math.abs(probe(S.detentY) - probe(S.detentY - 6)) < 0.05, "no part of the bump reaches up towards the rim");
   const closed = lid.clone().translate([0, 0, S.zb]);
   const overlap = (dy) => {
     try {
