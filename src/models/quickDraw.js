@@ -11,7 +11,7 @@
 
 import { drawRoundedRectangle, makeBaseBox, makeCylinder } from "replicad";
 import { clamp, safeFillet, num, requireRange, atZ } from "./util.js";
-import { slipLidSize, buildSlipLid } from "./parts.js";
+import { slipLidSize, buildSlipLid, slidingLidSize, cutSlidingLidWell, buildSlidingLid } from "./parts.js";
 import { QUICK_DRAW_DEFAULTS } from "./config.js";
 
 export { CARD_PRESETS, QUICK_DRAW_DEFAULTS } from "./config.js";
@@ -42,7 +42,12 @@ export function quickDrawLayout(input) {
   const cells = pockets.map((pk) => ({ ...pk, x: pk.cardWidth + cardTol, y: pk.cardHeight + cardTol }));
   const totalX = cells.reduce((s, c) => s + c.x, 0) + (cells.length + 1) * wall;
   const totalY = Math.max(...cells.map((c) => c.y)) + 2 * wall;
-  const totalZ = Math.max(...cells.map((c) => c.deckHeight)) + wall;
+  // A sliding lid sits inside the top of the box, so the box grows by the
+  // lid's thickness plus a little headroom over the cards.
+  const sliding = p.lidType === "sliding";
+  const slideT = sliding ? clamp(num(p.slideThickness, 3), 2, 6) : 0;
+  const headroom = sliding ? slideT + 0.3 : 0;
+  const totalZ = Math.max(...cells.map((c) => c.deckHeight)) + wall + headroom;
 
   // Corner radius has to fit inside the narrowest pocket; the finger slot has
   // to leave some wall on both sides of the card. Both shrink automatically.
@@ -52,7 +57,7 @@ export function quickDrawLayout(input) {
   for (const c of cells) {
     c.cx = x + c.x / 2;
     c.cy = p.align === "front" ? -totalY / 2 + wall + c.y / 2 : 0;
-    c.floorZ = totalZ - c.deckHeight;
+    c.floorZ = totalZ - headroom - c.deckHeight;
     c.fillet = clamp(requestedFillet, 0, Math.min(c.x, c.y) / 2 - 0.3);
     c.slot = requestedSlot <= 0 ? 0 : clamp(requestedSlot, 4, Math.min(c.x * 0.6, c.x - 2 * c.fillet - 1));
     x += c.x + wall;
@@ -60,6 +65,9 @@ export function quickDrawLayout(input) {
 
   const outerFillet = Math.min(...cells.map((c) => c.fillet)) + wall;
   const lid = slipLidSize({ x: totalX, y: totalY, z: totalZ, fillet: outerFillet, wall, tolerance: lidTol });
+  const slide = sliding
+    ? slidingLidSize({ x: totalX, y: totalY, z: totalZ, wall, thickness: slideT, clearance: clamp(num(p.slideClearance, 0.12), 0, 1) })
+    : null;
 
   return {
     params: { ...p, wallThickness: wall, cardTolerance: cardTol, lidTolerance: lidTol },
@@ -70,6 +78,7 @@ export function quickDrawLayout(input) {
     totalZ,
     outerFillet,
     lid,
+    slide,
   };
 }
 
@@ -98,6 +107,7 @@ function buildTray(L, warnings) {
 
   // Soften the rim.
   tray = safeFillet(tray, Math.min(0.4, wall / 4), atZ(totalZ), warnings, "Top rim");
+  if (L.slide) tray = cutSlidingLidWell(tray, L.slide);
   return tray;
 }
 
@@ -142,6 +152,7 @@ export function buildQuickDraw(params) {
   const parts = [{ name: "tray", shape: buildTray(L, warnings) }];
   if (L.params.lidType === "lid") parts.push({ name: "lid", shape: buildLid(L, warnings) });
   if (L.params.lidType === "cover") parts.push({ name: "cover", shape: buildCover(L, warnings) });
+  if (L.slide) parts.push({ name: "lid", shape: buildSlidingLid(L.slide, warnings) });
   return { parts, layout: L, warnings };
 }
 
@@ -150,6 +161,7 @@ export function describeQuickDraw(L) {
   const f = (n) => (Math.round(n * 10) / 10).toString();
   const lines = [`Tray ${f(L.totalX)} × ${f(L.totalY)} × ${f(L.totalZ)} mm`];
   if (L.params.lidType === "lid") lines.push(`Lid ${f(L.lid.outerX)} × ${f(L.lid.outerY)} × ${f(L.lid.outerZ)} mm`);
+  if (L.slide) lines.push(`Sliding lid ${f(L.slide.t)} mm thick, flush with the top; slides in from the front and clicks shut`);
   L.cells.forEach((c, i) =>
     lines.push(`Pocket ${i + 1}: ${f(c.y)} × ${f(c.x)} × ${f(c.deckHeight)} mm, finger slot ${c.slot ? f(c.slot) + " mm" : "none"}`)
   );

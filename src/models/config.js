@@ -18,8 +18,10 @@ export const QUICK_DRAW_DEFAULTS = {
   cardTolerance: 2,
   innerFillet: 3,
   fingerSlot: 15,
-  lidType: "lid", // lid | cover | none
+  lidType: "lid", // lid (cap) | sliding | cover | none
   lidTolerance: 0.6,
+  slideThickness: 3,
+  slideClearance: 0.12,
   align: "center", // center | front
 };
 
@@ -34,7 +36,10 @@ export const TOKEN_TRAY_DEFAULTS = {
   cornerRadius: 3,
   scoop: 8, // radius of the curve between floor and walls
   lid: true,
+  lidStyle: "cap", // cap | sliding
   lidTolerance: 0.6,
+  slideThickness: 3,
+  slideClearance: 0.12,
 };
 
 export const CARD_TRAY_DEFAULTS = {

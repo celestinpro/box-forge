@@ -150,3 +150,52 @@ test("card tray: upright option and cards taller than the rim", () => {
   assert.equal(up.layout.angle, 90);
   assert.match(up.warnings.join(" "), /stick out/);
 });
+
+// Sliding lids: put the printed lid back in its closed position. It must clear
+// the box there, and its springy fingers must ride over the bumps when it is
+// pulled part of the way out.
+function slidingFit(model, params) {
+  const { parts, layout } = check(model, params, ["tray", "lid"]);
+  const [tray, lid] = parts.map((p) => p.shape);
+  const S = layout.slide;
+  const closed = lid.clone().translate([0, 0, S.zb]);
+  const overlap = (dy) => {
+    try {
+      return measureVolume(tray.clone().intersect(closed.clone().translate([0, dy, 0])));
+    } catch {
+      return 0;
+    }
+  };
+  return { layout, closed: overlap(0), clicking: Math.max(overlap(-1), overlap(-1.5), overlap(-2.5)) };
+}
+
+for (const [name, params] of [
+  ["one standard deck", { lidType: "sliding" }],
+  ["45 x 14 narrow deck", { lidType: "sliding", pockets: [{ cardHeight: 45, cardWidth: 14, deckHeight: 20 }] }],
+  ["two different pockets", { lidType: "sliding", pockets: [{ cardHeight: 45, cardWidth: 14, deckHeight: 20 }, { cardHeight: 50, cardWidth: 18, deckHeight: 15 }] }],
+  ["thick lid", { lidType: "sliding", slideThickness: 4 }],
+]) {
+  test(`deck box sliding lid: ${name}`, () => {
+    const { layout: L, closed, clicking } = slidingFit("quick-draw", params);
+    assert.ok(closed < 0.05, `lid clears the box when closed (overlap ${closed.toFixed(3)} mm³)`);
+    assert.ok(clicking > 0.2, `fingers ride over the bumps (overlap ${clicking.toFixed(2)} mm³)`);
+    // The box grows by the lid thickness plus 0.3 mm headroom over the cards.
+    const deck = Math.max(...L.cells.map((c) => c.deckHeight));
+    assert.ok(Math.abs(L.totalZ - (deck + L.wall + L.slide.t + 0.3)) < 1e-9);
+  });
+}
+
+test("token tray sliding lid: fits and keeps the outside size", () => {
+  const { layout: L, closed, clicking } = slidingFit("token-tray", { lidStyle: "sliding" });
+  assert.ok(closed < 0.05);
+  assert.ok(clicking > 0.2);
+  assert.equal(L.height, 20);
+  assert.equal(+L.cellZ.toFixed(1), 20 - 1.2 - 3, "compartments end under the lid");
+});
+
+test("sliding lid: explains when the box is too narrow", () => {
+  assert.throws(
+    () => MODELS["quick-draw"].build({ lidType: "sliding", pockets: [{ cardHeight: 40, cardWidth: 4, deckHeight: 10 }] }),
+    /too narrow for a sliding lid/
+  );
+});

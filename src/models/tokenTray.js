@@ -2,7 +2,7 @@
 // out easily, and an optional slip-over lid.
 import { drawRoundedRectangle } from "replicad";
 import { clamp, safeFillet, num, requireRange, atZ } from "./util.js";
-import { slipLidSize, buildSlipLid } from "./parts.js";
+import { slipLidSize, buildSlipLid, slidingLidSize, cutSlidingLidWell, buildSlidingLid } from "./parts.js";
 import { TOKEN_TRAY_DEFAULTS } from "./config.js";
 
 export { TOKEN_TRAY_DEFAULTS } from "./config.js";
@@ -29,21 +29,31 @@ export function tokenTrayLayout(input) {
 
   const cellX = (width - (columns + 1) * wall) / columns;
   const cellY = (depth - (rows + 1) * wall) / rows;
-  const cellZ = height - floor;
+  // Lid: a cap that slides over the tray, a sliding lid set into the top
+  // (the compartments end under it), or none.
+  const lidStyle = p.lid === false ? "none" : p.lidStyle === "sliding" ? "sliding" : "cap";
+  const slideT = lidStyle === "sliding" ? clamp(num(p.slideThickness, 3), 2, 6) : 0;
+  const cellZ = height - floor - slideT;
   if (cellX < 4 || cellY < 4) {
     throw new Error(`Compartments would be only ${cellX.toFixed(1)} × ${cellY.toFixed(1)} mm. Make the tray bigger or use fewer rows/columns.`);
   }
-  if (cellZ < 2) throw new Error("Height must be at least 2 mm more than the floor thickness.");
+  if (cellZ < 2) {
+    throw new Error(lidStyle === "sliding" ? "Height must be at least 2 mm more than the floor plus the sliding lid." : "Height must be at least 2 mm more than the floor thickness.");
+  }
 
   const cellFillet = clamp(num(p.cornerRadius, 3) - wall, 0, Math.min(cellX, cellY) / 2 - 0.3);
   const outerFillet = cellFillet + wall;
   const scoop = clamp(num(p.scoop, 8), 0, Math.min(cellZ - 0.5, cellY / 2 - 0.5, cellX / 2 - 0.5));
   const lid = slipLidSize({ x: width, y: depth, z: height, fillet: outerFillet, wall, tolerance: lidTol });
+  const slide =
+    lidStyle === "sliding"
+      ? slidingLidSize({ x: width, y: depth, z: height, wall, thickness: slideT, clearance: clamp(num(p.slideClearance, 0.12), 0, 1), ledge: 1 })
+      : null;
 
   return {
-    params: { ...p, width, depth, height, columns, rows, wallThickness: wall, floorThickness: floor, lidTolerance: lidTol },
-    width, depth, height, columns, rows, wall, floor,
-    cellX, cellY, cellZ, cellFillet, outerFillet, scoop, lid,
+    params: { ...p, width, depth, height, columns, rows, wallThickness: wall, floorThickness: floor, lidTolerance: lidTol, lidStyle },
+    width, depth, height, columns, rows, wall, floor, lidStyle,
+    cellX, cellY, cellZ, cellFillet, outerFillet, scoop, lid, slide,
   };
 }
 
@@ -68,9 +78,11 @@ export function buildTokenTray(params) {
     }
   }
   tray = safeFillet(tray, Math.min(0.4, wall / 4), atZ(height), warnings, "Top rim");
+  if (L.slide) tray = cutSlidingLidWell(tray, L.slide);
 
   const parts = [{ name: "tray", shape: tray }];
-  if (L.params.lid) parts.push({ name: "lid", shape: buildSlipLid(L.lid, wall, warnings, "y") });
+  if (L.lidStyle === "cap") parts.push({ name: "lid", shape: buildSlipLid(L.lid, wall, warnings, "y") });
+  if (L.slide) parts.push({ name: "lid", shape: buildSlidingLid(L.slide, warnings) });
   return { parts, layout: L, warnings };
 }
 
@@ -80,6 +92,7 @@ export function describeTokenTray(L) {
     `Tray ${f(L.width)} × ${f(L.depth)} × ${f(L.height)} mm`,
     `${L.columns * L.rows} compartments, each ${f(L.cellX)} × ${f(L.cellY)} × ${f(L.cellZ)} mm`,
   ];
-  if (L.params.lid) lines.push(`Lid ${f(L.lid.outerX)} × ${f(L.lid.outerY)} × ${f(L.lid.outerZ)} mm`);
+  if (L.lidStyle === "cap") lines.push(`Lid ${f(L.lid.outerX)} × ${f(L.lid.outerY)} × ${f(L.lid.outerZ)} mm`);
+  if (L.slide) lines.push(`Sliding lid ${f(L.slide.t)} mm thick, flush with the top; slides in from the front and clicks shut`);
   return lines;
 }

@@ -1,4 +1,5 @@
 import { h, numberField, segmented } from "./dom.js";
+import { slidingFields } from "./slidingFields.js";
 import { CARD_PRESETS } from "../models/config.js";
 
 const MAX_POCKETS = 8;
@@ -73,9 +74,19 @@ export function quickDrawForm(params, update, rerender) {
     segmented({
       label: "Lid",
       value: params.lidType,
-      options: [["lid", "Slide-over lid"], ["cover", "Flat cover"], ["none", "No lid"]],
-      onChange: (v) => update({ lidType: v }),
+      options: [["lid", "Cap"], ["sliding", "Sliding"], ["cover", "Cover"], ["none", "None"]],
+      onChange: (v) => {
+        update({ lidType: v });
+        rerender();
+      },
     }),
+    params.lidType === "sliding"
+      ? slidingFields(params, update)
+      : h(
+          "p.hint",
+          { style: "margin-top:-8px" },
+          { lid: "A cap that slides down over the whole box.", cover: "A flat cover with a plug that drops into each pocket.", none: "Just the box." }[params.lidType] ?? ""
+        ),
     pockets.length > 1
       ? segmented({
           label: "Shorter cards sit",
@@ -91,7 +102,7 @@ export function quickDrawForm(params, update, rerender) {
       numberField({ label: "Card clearance", value: params.cardTolerance, hint: "Added to the card size so cards drop in easily. 2 mm suits most printers.", onChange: (v) => update({ cardTolerance: v }) }),
       numberField({ label: "Pocket corner radius", value: params.innerFillet, hint: "Shrinks automatically for narrow cards.", onChange: (v) => update({ innerFillet: v }) }),
       numberField({ label: "Finger slot width", value: params.fingerSlot, hint: "Shrinks automatically for narrow cards. 0 for no slot.", onChange: (v) => update({ fingerSlot: v }) }),
-      numberField({ label: "Lid clearance", value: params.lidTolerance, hint: "Increase if the lid is too tight on your printer.", onChange: (v) => update({ lidTolerance: v }) })
+      numberField({ label: "Cap and cover clearance", value: params.lidTolerance, hint: "Increase if the cap or cover is too tight on your printer.", onChange: (v) => update({ lidTolerance: v }) })
     )
   );
 }
