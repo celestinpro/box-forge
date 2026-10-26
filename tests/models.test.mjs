@@ -158,6 +158,10 @@ function slidingFit(model, params) {
   const { parts, layout } = check(model, params, ["tray", "lid"]);
   const [tray, lid] = parts.map((p) => p.shape);
   const S = layout.slide;
+  // Nothing (like the click bumps) may stick out past the box's outline.
+  const [[x0, y0], [x1, y1]] = tray.boundingBox.bounds;
+  assert.ok(Math.abs(x1 - x0 - S.x) < 0.01, `tray is ${(x1 - x0).toFixed(2)} mm wide, expected ${S.x}`);
+  assert.ok(Math.abs(y1 - y0 - S.y) < 0.01, `tray is ${(y1 - y0).toFixed(2)} mm deep, expected ${S.y}`);
   const closed = lid.clone().translate([0, 0, S.zb]);
   const overlap = (dy) => {
     try {

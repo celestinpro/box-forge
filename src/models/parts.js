@@ -128,8 +128,9 @@ export function cutSlidingLidWell(body, S) {
       box = box.fuse(profile.sketchOnPlane("XZ").extrude(len).translate([0, len / 2, 0]));
     }
   }
-  const keep = makeBaseBox(S.x + 10, S.y + 10, S.z); // trim bumps to the box's height
-  for (const c of detentCylinders(S, S.detentR)) box = box.fuse(c.intersect(keep.clone()));
+  // The click bumps only exist inside the groove: trim each one to the space
+  // the groove cut away, so nothing shows on the outside of the walls.
+  for (const c of detentCylinders(S, S.detentR)) box = box.fuse(c.intersect(well.clone()));
   return box;
 }
 
