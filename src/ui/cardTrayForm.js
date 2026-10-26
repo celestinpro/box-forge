@@ -54,9 +54,20 @@ export function cardTrayForm(params, update, rerender) {
         options: [["height", "Tray height"], ["angle", "Lean angle"]],
         onChange: (v) => set({ heightMode: v }, true),
       }),
-      params.heightMode === "angle"
-        ? numberField({ label: "Lean angle", value: params.angle, unit: "°", step: 1, hint: "90° is upright. The height follows from the angle.", onChange: (v) => set({ angle: v }) })
-        : numberField({ label: "Tray height", value: params.height, hint: "Use the space under your game box lid. The cards lean back to fit.", onChange: (v) => set({ height: v }) })
+      ...(params.heightMode === "angle"
+        ? [numberField({ label: "Lean angle", value: params.angle, unit: "°", step: 1, hint: "90° is upright. The height follows from the angle.", onChange: (v) => set({ angle: v }) })]
+        : [
+            numberField({ label: "Tray height", value: params.height, hint: "Use the space under your game box lid.", onChange: (v) => set({ height: v }) }),
+            segmented({
+              label: "Cards and dividers lean",
+              value: params.lean,
+              options: [["auto", "Fit height"], ["angle", "At an angle"], ["upright", "Upright"]],
+              onChange: (v) => set({ lean: v }, true),
+            }),
+            params.lean === "angle"
+              ? numberField({ label: "Lean angle", value: params.angle, unit: "°", step: 1, hint: "Walls, cards and divider slots all lean at this angle. 90° is upright.", onChange: (v) => set({ angle: v }) })
+              : h("p.hint", params.lean === "upright" ? "Walls and divider slots stand straight up." : "Cards lean just enough for their tops to reach the rim. If the tray is taller than the cards, they stand upright."),
+          ])
     ),
 
     h(

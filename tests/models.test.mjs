@@ -129,3 +129,24 @@ test("card tray: explains when the space is too short", () => {
   assert.throws(() => MODELS["card-tray"].build({ length: 30 }), /too short/);
   assert.throws(() => MODELS["card-tray"].build({ dividers: "fixed", stacks: "20" }), /at least two/);
 });
+
+test("card tray: short cards in a tall tray can still lean at a set angle", () => {
+  const base = { cardHeight: 45, cardWidth: 68, height: 57, length: 150 };
+  const auto = check("card-tray", base, ["tray", "divider"]);
+  assert.equal(auto.layout.angle, 90, "auto stands short cards upright");
+  assert.match(auto.warnings.join(" "), /At an angle|Set angle/);
+
+  const { layout: L, parts } = check("card-tray", { ...base, lean: "angle", angle: 70 }, ["tray", "divider"]);
+  assert.equal(L.angle, 70);
+  assert.equal(L.height, 57, "height stays what the user set");
+  assert.ok(L.run > 15, "end walls lean back");
+  // The divider reaches the rim along the lean, not just the card height.
+  const dividerLength = parts[1].shape.boundingBox.bounds[1][0] - parts[1].shape.boundingBox.bounds[0][0];
+  assert.ok(Math.abs(dividerLength - (L.slantLength - 0.6)) < 1);
+});
+
+test("card tray: upright option and cards taller than the rim", () => {
+  const up = check("card-tray", { lean: "upright" }, ["tray", "divider"]);
+  assert.equal(up.layout.angle, 90);
+  assert.match(up.warnings.join(" "), /stick out/);
+});

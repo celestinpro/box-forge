@@ -67,9 +67,12 @@ export function cardTrayLayout(input) {
   const across = (standOnLong ? long : short) + clearance; // Y, card edge on the floor
   const lean = (standOnLong ? short : long) + clearance; // card dimension that leans
 
-  // Angle and height: set one, the other follows.
+  // Angle and height. Either the height follows a set angle, or the tray
+  // height is fixed and the cards lean to fit it ("auto"), at a set angle
+  // ("angle"), or not at all ("upright").
   let angle, height;
   const warnings = [];
+  const leanMode = ["auto", "angle", "upright"].includes(p.lean) ? p.lean : "auto";
   if (p.heightMode === "angle") {
     angle = num(p.angle, 60);
     requireRange("Lean angle", angle, 15, 90);
@@ -77,19 +80,35 @@ export function cardTrayLayout(input) {
   } else {
     height = num(p.height, 57);
     requireRange("Height", height, floor + 8, 400);
-    const ratio = (height - floor) / lean;
-    if (ratio >= 1) {
+    if (leanMode === "upright") {
       angle = 90;
-      warnings.push(`The tray is taller than the cards (${lean.toFixed(1)} mm with clearance), so they stand upright.`);
+    } else if (leanMode === "angle") {
+      angle = num(p.angle, 60);
+      requireRange("Lean angle", angle, 15, 90);
     } else {
-      angle = Math.asin(ratio) / DEG;
-      if (angle < 15) {
-        throw new Error(`At ${height} mm tall the cards would lean at ${angle.toFixed(0)}°. Use at least ${(floor + Math.sin(15 * DEG) * lean).toFixed(0)} mm, or set a lean angle instead.`);
+      const ratio = (height - floor) / lean;
+      if (ratio >= 1) {
+        angle = 90;
+        warnings.push(`The tray is taller than the cards (${lean.toFixed(1)} mm with clearance), so they stand upright. Pick "At an angle" under "Cards and dividers lean" to slant them anyway.`);
+      } else {
+        angle = Math.asin(ratio) / DEG;
+        if (angle < 15) {
+          throw new Error(`At ${height} mm tall the cards would lean at ${angle.toFixed(0)}°. Use at least ${(floor + Math.sin(15 * DEG) * lean).toFixed(0)} mm, or set a lean angle instead.`);
+        }
       }
     }
   }
   const sinA = Math.sin(angle * DEG);
-  const run = angle >= 89.99 ? 0 : Math.cos(angle * DEG) * lean; // how far a card's top leans back
+  const upright = angle >= 89.99;
+  const wallHeight = height - floor;
+  // How far the end walls lean back between floor and rim, and how long a
+  // leaning wall or divider is from floor to rim.
+  const run = upright ? 0 : wallHeight / Math.tan(angle * DEG);
+  const slantLength = wallHeight / sinA;
+  const cardTop = floor + sinA * lean;
+  if (cardTop > height + 0.5) {
+    warnings.push(`At ${angle.toFixed(0)}° the cards stick out ${(cardTop - height).toFixed(0)} mm above the rim.`);
+  }
 
   // Dividers
   const dividerMode = ["none", "removable", "fixed"].includes(p.dividers) ? p.dividers : "none";
@@ -151,11 +170,11 @@ export function cardTrayLayout(input) {
 
   return {
     params: { ...p, dividers: dividerMode },
-    cardHeight, cardWidth, across, lean, angle, sinA, run, height, length, width, wall,
+    cardHeight, cardWidth, across, lean, angle, sinA, run, slantLength, leanMode, height, length, width, wall,
     floor, endWall, corner: clamp(corner, 0, Math.min(width, length) / 2 - 0.5),
     cardSpace, stackCapacity: cardSpace * sinA,
     dividerMode, dividerThickness, dividerRun, stacks, removable,
-    slotDepth: clamp(num(p.slotDepth, 17), 4, lean * 0.8),
+    slotDepth: clamp(num(p.slotDepth, 17), 4, slantLength * 0.8),
     grooveOn, grooveWidth, grooveDepth, grooveShoulder, grooveRadius, cutoutOn,
     warnings,
   };
@@ -281,10 +300,10 @@ function buildTray(L, warnings) {
 
 /** One removable divider, printed flat. */
 function buildDivider(L) {
-  const { width, across, lean, dividerThickness: t, slotDepth, sinA } = L;
+  const { width, across, slantLength, dividerThickness: t, slotDepth, sinA } = L;
   const fit = 0.6; // play around the divider
   const tab = slotDepth - 0.5;
-  const body = lean - fit;
+  const body = slantLength - fit; // from the floor to the rim, along the lean
   // Lies in XY: X = along the lean (0 = bottom edge), Y = across the tray.
   let plate = drawRoundedRectangle(body, across - fit, 1.5).sketchOnPlane().extrude(t).translate([body / 2, 0, 0]);
   // The tab reaches into the slots in both side walls.

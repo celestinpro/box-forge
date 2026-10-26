@@ -43,6 +43,7 @@ export const CARD_TRAY_DEFAULTS = {
   cardTolerance: 2,
   standOn: "long", // long | short: which card edge rests on the floor
   heightMode: "height", // height | angle
+  lean: "auto", // auto | angle | upright (when the height is set)
   height: 57,
   angle: 60,
   lengthMode: "space", // space | cards
