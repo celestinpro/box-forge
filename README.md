@@ -7,6 +7,7 @@ Design 3D-printable deck boxes and token trays for board games, right in the bro
 ## What it makes
 
 - **Deck box**: one or more card pockets side by side. Each pocket can have its own card size and stack height. Shallower decks get a raised floor so every deck sits level with the rim. Comes with a slide-over lid, a flat plug-in cover, or no lid.
+- **Card tray**: an open tray for game inserts where the cards lean back, so tall cards fit under a low lid. Set the tray height (or the lean angle) and size the length to a space in the box or to your stack of cards. Optional finger groove, floor slot, removable dividers (slots plus a printable divider), or fixed dividers sized per stack.
 - **Token tray**: an even grid of compartments with curved (scooped) floors so tokens slide out, plus an optional slide-over lid.
 
 Finger slots and corner radii shrink automatically to fit narrow cards, so small sizes like 45 × 14 mm build without hand-tuning.
@@ -49,7 +50,7 @@ Every push to `main` runs the tests, builds the site, and publishes it to GitHub
 
 ## Credits
 
-Inspired by Steve Genoud's [Deck in a Box](https://deckinabox.sgenoud.com/). Box Forge is an independent reimplementation; it doesn't contain code from that site. 3D modelling by [replicad](https://github.com/sgenoud/replicad) (MIT) and [OpenCascade](https://dev.opencascade.org/) (LGPL 2.1, loaded unmodified as WebAssembly via `replicad-opencascadejs`).
+Inspired by Steve Genoud's [Deck in a Box](https://deckinabox.sgenoud.com/). The card tray follows the leaning-card tray design by [js500](https://www.printables.com/model/449323) and floookay's [parametric card holder](https://www.printables.com/model/769092). Box Forge is an independent implementation and contains no code from those projects. 3D modelling by [replicad](https://github.com/sgenoud/replicad) (MIT) and [OpenCascade](https://dev.opencascade.org/) (LGPL 2.1, loaded unmodified as WebAssembly via `replicad-opencascadejs`).
 
 ## License
 

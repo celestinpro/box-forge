@@ -78,3 +78,37 @@ for (const [name, params] of tt) {
 test("token tray: too many compartments explains the problem", () => {
   assert.throws(() => MODELS["token-tray"].build({ width: 30, columns: 12 }), /Compartments would be only/);
 });
+
+const ct = [
+  ["defaults (fit a 150 mm space, 57 mm tall)", {}, ["tray"]],
+  ["removable dividers", { dividers: "removable" }, ["tray", "divider"]],
+  ["fixed dividers", { dividers: "fixed", stacks: "20, 15, 25" }, ["tray"]],
+  ["lean angle + fit my cards", { heightMode: "angle", angle: 45, lengthMode: "cards", stackThickness: 30 }, ["tray"]],
+  ["taller than the cards (upright)", { height: 80 }, ["tray"]],
+  ["standing on the short edge", { standOn: "short", height: 70 }, ["tray"]],
+  ["fit a wider space", { width: 100 }, ["tray"]],
+  ["no groove, no floor slot", { groove: false, floorCutout: false }, ["tray"]],
+  ["mini cards, removable", { cardHeight: 63, cardWidth: 41, height: 35, length: 80, dividers: "removable", dividerSpacing: 12 }, ["tray", "divider"]],
+];
+for (const [name, params, parts] of ct) {
+  test(`card tray: ${name}`, () => check("card-tray", params, parts));
+}
+
+test("card tray: matches the reference tray's numbers", () => {
+  const { layout: L } = check("card-tray", {}, ["tray"]);
+  assert.equal(+L.length.toFixed(1), 150);
+  assert.equal(+L.width.toFixed(1), 93.2);
+  assert.equal(+L.height.toFixed(1), 57);
+  assert.equal(+L.angle.toFixed(1), 59.1);
+});
+
+test("card tray: fixed dividers set the length from the stacks", () => {
+  const { layout: L } = check("card-tray", { dividers: "fixed", stacks: "10, 10" }, ["tray"]);
+  const expected = 2 * 5 + (20 + 1.6) / L.sinA + L.run;
+  assert.ok(Math.abs(L.length - expected) < 0.01);
+});
+
+test("card tray: explains when the space is too short", () => {
+  assert.throws(() => MODELS["card-tray"].build({ length: 30 }), /too short/);
+  assert.throws(() => MODELS["card-tray"].build({ dividers: "fixed", stacks: "20" }), /at least two/);
+});

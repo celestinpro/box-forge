@@ -36,3 +36,30 @@ export const TOKEN_TRAY_DEFAULTS = {
   lid: true,
   lidTolerance: 0.6,
 };
+
+export const CARD_TRAY_DEFAULTS = {
+  cardHeight: 88,
+  cardWidth: 63,
+  cardTolerance: 2,
+  standOn: "long", // long | short: which card edge rests on the floor
+  heightMode: "height", // height | angle
+  height: 57,
+  angle: 60,
+  lengthMode: "space", // space | cards
+  length: 150,
+  stackThickness: 40,
+  dividers: "none", // none | removable | fixed
+  dividerSpacing: 15,
+  dividerThickness: 1.6,
+  slotDepth: 20,
+  stacks: "20, 15, 25",
+  groove: true,
+  grooveWidth: 0, // 0 = automatic
+  grooveDepth: 0, // 0 = automatic
+  floorCutout: true,
+  width: 0, // 0 = card + side walls
+  sideWall: 1.6,
+  endWall: 5,
+  floorThickness: 1.2,
+  cornerRadius: 3,
+};

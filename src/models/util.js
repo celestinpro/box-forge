@@ -1,3 +1,5 @@
+import { getOC } from "replicad";
+
 // Small helpers shared by all models.
 
 /** Clamp a value between lo and hi. */
@@ -12,11 +14,24 @@ export const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 export function safeFillet(shape, radius, filter, warnings, label) {
   if (!(radius > 0.05)) return shape;
   try {
-    return shape.fillet(radius, filter);
+    const out = shape.fillet(radius, filter);
+    // OpenCascade sometimes "succeeds" with a broken solid; treat that as a failure.
+    if (isValidSolid(out)) return out;
+    out.delete?.();
   } catch (e) {
-    if (warnings && label) warnings.push(`${label}: kept sharp (rounding didn't fit)`);
-    return shape;
+    // fall through
   }
+  if (warnings && label) warnings.push(`${label}: kept sharp (rounding didn't fit)`);
+  return shape;
+}
+
+/** True when OpenCascade considers the shape a valid, closed solid. */
+export function isValidSolid(shape) {
+  const oc = getOC();
+  const check = new oc.BRepCheck_Analyzer(shape.wrapped, true, false, false);
+  const ok = check.IsValid();
+  check.delete();
+  return ok;
 }
 
 /** Coerce a value to a finite number, falling back to a default. */

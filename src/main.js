@@ -3,7 +3,8 @@ import { h } from "./ui/dom.js";
 import { generatorPage } from "./ui/generatorPage.js";
 import { quickDrawForm } from "./ui/quickDrawForm.js";
 import { tokenTrayForm } from "./ui/tokenTrayForm.js";
-import { QUICK_DRAW_DEFAULTS, TOKEN_TRAY_DEFAULTS } from "./models/config.js";
+import { cardTrayForm } from "./ui/cardTrayForm.js";
+import { QUICK_DRAW_DEFAULTS, TOKEN_TRAY_DEFAULTS, CARD_TRAY_DEFAULTS } from "./models/config.js";
 import { warmUp } from "./cad/client.js";
 
 const deckBoxArt = `
@@ -28,6 +29,18 @@ const trayArt = `
   </g>
 </svg>`;
 
+const cardTrayArt = `
+<svg viewBox="0 0 200 120" aria-hidden="true">
+  <g fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round">
+    <path d="M18 78 L98 104 L182 70 L102 44 Z"/>
+    <path d="M18 78 L18 50 L102 22 L182 46 L182 70"/>
+    <path d="M98 104 L98 78 L182 46"/><path d="M98 78 L18 50"/>
+    <path d="M44 62 L70 36" opacity=".6"/><path d="M58 66 L84 40" opacity=".6"/>
+    <path d="M72 70 L98 44" opacity=".6"/><path d="M86 74 L112 48" opacity=".6"/>
+    <path d="M118 85 q22 -14 40 -26" opacity=".55"/>
+  </g>
+</svg>`;
+
 const GENERATORS = [
   {
     path: "quick-draw",
@@ -40,6 +53,12 @@ const GENERATORS = [
     title: "Token tray",
     blurb: "A grid of compartments with curved floors so tokens slide out, and a lid that slides over the top.",
     art: trayArt,
+  },
+  {
+    path: "card-tray",
+    title: "Card tray",
+    blurb: "An open tray for game inserts. The cards lean back so tall cards fit a low box, with a finger groove and optional dividers.",
+    art: cardTrayArt,
   },
 ];
 
@@ -94,6 +113,14 @@ const ROUTES = {
       intro: "Set the outside size and how many compartments you want. Compartments are divided evenly.",
       defaults: TOKEN_TRAY_DEFAULTS,
       form: tokenTrayForm,
+    }),
+  "card-tray": () =>
+    generatorPage({
+      model: "card-tray",
+      title: "Card tray",
+      intro: "Set the height you have under the game box lid and the cards lean back to fit. Size the tray to a space in the box, or to your stack of cards.",
+      defaults: CARD_TRAY_DEFAULTS,
+      form: cardTrayForm,
     }),
 };
 

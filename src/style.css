@@ -81,7 +81,7 @@ footer.site p { margin: 0; max-width: 70ch; }
 
 .tiles {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 20px;
   margin: 48px 0 56px;
 }
@@ -164,7 +164,7 @@ fieldset.pocket legend {
 .input-unit { position: relative; display: flex; align-items: center; }
 .input-unit input { width: 100%; padding-right: 40px; }
 .unit { position: absolute; right: 10px; color: var(--ink-soft); font-size: 0.85rem; pointer-events: none; }
-input[type="number"], select {
+input[type="number"], input[type="text"], select {
   font: inherit;
   font-variant-numeric: tabular-nums;
   padding: 8px 10px;
