@@ -5,6 +5,13 @@ import wasmUrl from "replicad-opencascadejs/wasm?url";
 import { setOC, exportSTEP } from "replicad";
 import { MODELS } from "../models/index.js";
 
+// OpenCascade logs "failed to compute a normal" while working with curved
+// edges. It's harmless, so keep it out of the console.
+const consoleError = console.error.bind(console);
+console.error = (...args) => {
+  if (!/compute a normal/.test(String(args[0]))) consoleError(...args);
+};
+
 const ready = (async () => {
   const OC = await opencascade({ locateFile: () => wasmUrl });
   setOC(OC);
