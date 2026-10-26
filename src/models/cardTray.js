@@ -127,19 +127,26 @@ export function cardTrayLayout(input) {
   }
   const width = across + 2 * wall;
 
-  // Finger groove along the top, and slot in the floor.
+  // Finger notch in both end walls: a round-bottomed scoop with rounded
+  // shoulders where it meets the top, wide enough to pinch the stack.
   const grooveOn = p.groove !== false;
-  const grooveWidth = clamp(num(p.grooveWidth, 0) || Math.min(across * 0.5, 45), 6, across - 4);
-  const grooveDepth = clamp(num(p.grooveDepth, 0) || (height - floor) * 0.55, 3, height - floor - 1);
-  const cutoutOn = p.floorCutout !== false && cardSpace > 8;
+  const grooveDepth = clamp(num(p.grooveDepth, 0) || (height - floor) * 0.5, 4, height - floor - 1);
+  // Width of the notch where it meets the top (before the shoulder rounding).
+  const grooveWidth = clamp(num(p.grooveWidth, 0) || 2 * Math.min(grooveDepth, across * 0.34), 8, across - 4);
+  const grooveRadius = grooveWidth / 2;
+  const grooveShoulder = clamp(num(p.grooveShoulder, 5), 0, Math.min(20, (across - grooveWidth) / 2 - 1, height - floor - 2));
+  const cutoutOn = p.floorCutout === true && cardSpace > 8;
   const removable = [];
   if (dividerMode === "removable") {
     const spacing = num(p.dividerSpacing, 15);
     requireRange("Divider spacing", spacing, 4, 300);
-    // Slot positions measured at the top of the tray, from the back.
-    const count = Math.floor((cardSpace - 1) / spacing);
-    const backAtTop = endWall + run + cardSpace;
-    for (let i = 1; i <= count; i++) removable.push(backAtTop - i * spacing);
+    // Slot positions at the top of the tray, spread evenly and centred.
+    const span = cardSpace;
+    const margin = Math.max(6, spacing * 0.6);
+    const count = span - 2 * margin >= 0 ? Math.floor((span - 2 * margin) / spacing) + 1 : 0;
+    const frontAtTop = endWall + run;
+    const first = frontAtTop + (span - (count - 1) * spacing) / 2;
+    for (let i = 0; i < count; i++) removable.push(first + i * spacing);
   }
 
   return {
@@ -148,10 +155,53 @@ export function cardTrayLayout(input) {
     floor, endWall, corner: clamp(corner, 0, Math.min(width, length) / 2 - 0.5),
     cardSpace, stackCapacity: cardSpace * sinA,
     dividerMode, dividerThickness, dividerRun, stacks, removable,
-    slotDepth: clamp(num(p.slotDepth, 20), 4, lean * 0.8),
-    grooveOn, grooveWidth, grooveDepth, cutoutOn,
+    slotDepth: clamp(num(p.slotDepth, 17), 4, lean * 0.8),
+    grooveOn, grooveWidth, grooveDepth, grooveShoulder, grooveRadius, cutoutOn,
     warnings,
   };
+}
+
+/**
+ * 2D outline of the finger notch, centred on u = 0 with the top surface at
+ * v = top: a half-round bottom, straight sides, and rounded shoulders.
+ */
+function notchDrawing({ radius: R, shoulder: s, depth: D, top }) {
+  // Drawn as one outline (right half, mirrored): round bottom, then a
+  // shoulder arc that blends into the top surface. Built from tangent arcs
+  // rather than 2D booleans, which are unreliable for tangent circles.
+  const vc = top - D + R; // centre of the round bottom
+  const above = top + 10;
+  const arcPoint = (cx, cy, r, a) => [cx + r * Math.cos(a), cy + r * Math.sin(a)];
+  const pen = draw([0, vc - R]);
+  const bottomAngle = -Math.PI / 2;
+
+  if (s <= 0.05) {
+    // No shoulder: follow the circle up to the top surface (or to its widest point).
+    const endA = vc >= top ? Math.asin((top - vc) / R) : 0;
+    const end = arcPoint(0, vc, R, endA);
+    pen.threePointsArcTo(end, arcPoint(0, vc, R, (bottomAngle + endA) / 2));
+    if (vc < top) pen.lineTo([R, top]);
+    return pen.lineTo([end[0], above]).lineTo([0, above]).closeWithMirror();
+  }
+
+  const zf = top - s; // shoulder circle centre height
+  if (vc <= zf) {
+    // Straight sides between the round bottom and the shoulders.
+    pen.threePointsArcTo([R, vc], arcPoint(0, vc, R, -Math.PI / 4));
+    if (zf - vc > 0.01) pen.lineTo([R, zf]);
+    pen.threePointsArcTo([R + s, top], arcPoint(R + s, zf, s, (3 * Math.PI) / 4));
+    return pen.lineTo([R + s, above]).lineTo([0, above]).closeWithMirror();
+  }
+
+  // Round bottom runs straight into the shoulder: the shoulder circle touches
+  // the bottom circle (centres R + s apart) and the top surface.
+  const xf = Math.sqrt((R + s) ** 2 - (vc - zf) ** 2);
+  const tA = Math.atan2(zf - vc, xf); // direction from bottom centre to shoulder centre
+  const T = arcPoint(0, vc, R, tA);
+  pen.threePointsArcTo(T, arcPoint(0, vc, R, (bottomAngle + tA) / 2));
+  const fromA = tA + Math.PI; // T as seen from the shoulder centre
+  pen.threePointsArcTo([xf, top], arcPoint(xf, zf, s, (fromA + Math.PI / 2 + 2 * Math.PI) / 2 - Math.PI));
+  return pen.lineTo([xf, above]).lineTo([0, above]).closeWithMirror();
 }
 
 function buildTray(L, warnings) {
@@ -164,7 +214,8 @@ function buildTray(L, warnings) {
     .translate([length / 2, width / 2, 0]);
 
   // Card space: a slab that leans with the cards, cut from the floor up past the top.
-  tray = tray.cut(leaningSlab({ x0: endWall, z0: floor, z1: top, width: cardSpace, angle, y0: wall, depth: across }));
+  const space = leaningSlab({ x0: endWall, z0: floor, z1: top, width: cardSpace, angle, y0: wall, depth: across });
+  tray = tray.cut(space);
 
   // Fixed dividers: leaning walls between stacks, joined to the floor.
   if (L.dividerMode === "fixed") {
@@ -176,11 +227,10 @@ function buildTray(L, warnings) {
     });
   }
 
-  // Finger groove: a round-bottomed channel along the full length.
+  // Finger notch through both end walls (the inside is open anyway).
   if (L.grooveOn) {
-    const r = Math.min(L.grooveWidth / 2, L.grooveDepth) - 0.01;
-    const groove = drawRoundedRectangle(L.grooveWidth, 2 * L.grooveDepth, r).sketchOnPlane("YZ").extrude(length + 2);
-    tray = tray.cut(placeAt(groove, [-1, width / 2 - L.grooveWidth / 2, height - L.grooveDepth]));
+    const notch = notchDrawing({ radius: L.grooveRadius, shoulder: L.grooveShoulder, depth: L.grooveDepth, top: height });
+    tray = tray.cut(notch.sketchOnPlane("YZ").extrude(length + 2).translate([-1, width / 2, 0]));
   }
 
   // Slot in the floor so cards can be pushed up from below.
@@ -206,15 +256,23 @@ function buildTray(L, warnings) {
   }
 
   // Soften the top edges before cutting divider slots, which would crowd them.
-  tray = safeFillet(tray, 0.6, atZ(height), warnings, "Top edges");
+  const rounded = safeFillet(tray, 1.2, atZ(height));
+  tray = rounded !== tray ? rounded : safeFillet(tray, 0.5, atZ(height), warnings, "Top edges");
 
-  // Removable dividers: leaning slots in both side walls, open at the top.
+  // Removable dividers: slots in both side walls that lean with the cards,
+  // with rounded ends.
   if (L.dividerMode === "removable") {
-    const slotRun = (L.dividerThickness + 0.5) / sinA;
-    const z0 = height - L.slotDepth * sinA;
-    const dz = angle >= 89.99 ? 0 : (height - z0) / Math.tan(angle * DEG);
+    const w = L.dividerThickness + 0.8; // slot width, square to the lean
+    const dx = Math.cos(angle * DEG);
+    const dz = Math.sin(angle * DEG);
+    const below = L.slotDepth;
+    const over = 6;
+    const len = below + over;
     for (const xTop of L.removable) {
-      tray = tray.cut(leaningSlab({ x0: xTop - dz - slotRun / 2, z0, z1: top, width: slotRun, angle, y0: -1, depth: width + 2 }));
+      const cx = xTop + (dx * (over - below)) / 2;
+      const cz = height + (dz * (over - below)) / 2;
+      const slot = drawRoundedRectangle(len, w, w / 2 - 0.01).rotate(angle, [0, 0]).translate(cx, cz);
+      tray = tray.cut(slot.sketchOnPlane("XZ").extrude(width + 2).translate([0, width + 1, 0]));
     }
   }
 
@@ -223,7 +281,7 @@ function buildTray(L, warnings) {
 
 /** One removable divider, printed flat. */
 function buildDivider(L) {
-  const { width, across, lean, dividerThickness: t, slotDepth } = L;
+  const { width, across, lean, dividerThickness: t, slotDepth, sinA } = L;
   const fit = 0.6; // play around the divider
   const tab = slotDepth - 0.5;
   const body = lean - fit;
@@ -233,10 +291,13 @@ function buildDivider(L) {
   const tabShape = drawRoundedRectangle(tab, width - 1 - fit, 1).sketchOnPlane().extrude(t);
   plate = plate.fuse(tabShape.translate([body - tab / 2, 0, 0]));
   if (L.grooveOn) {
-    const depth = L.grooveDepth / L.sinA + 1;
-    const r = Math.min(L.grooveWidth / 2, depth) - 0.01;
-    const notch = drawRoundedRectangle(2 * depth, L.grooveWidth, r).sketchOnPlane().extrude(t + 2);
-    plate = plate.cut(notch.translate([body, 0, -1]));
+    // Same notch as the end walls, stretched along the lean so they line up.
+    const depth = Math.min(L.grooveDepth / sinA, body - 4);
+    const radius = Math.min(L.grooveRadius, depth - L.grooveShoulder);
+    if (radius > 1) {
+      const notch = notchDrawing({ radius, shoulder: L.grooveShoulder, depth, top: body }).rotate(-90, [0, 0]);
+      plate = plate.cut(notch.sketchOnPlane().extrude(t + 2).translate([0, 0, -1]));
+    }
   }
   return plate;
 }

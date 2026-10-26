@@ -48,18 +48,19 @@ export const CARD_TRAY_DEFAULTS = {
   lengthMode: "space", // space | cards
   length: 150,
   stackThickness: 40,
-  dividers: "none", // none | removable | fixed
+  dividers: "removable", // none | removable | fixed
   dividerSpacing: 15,
-  dividerThickness: 1.6,
-  slotDepth: 20,
+  dividerThickness: 2.4,
+  slotDepth: 17,
   stacks: "20, 15, 25",
   groove: true,
   grooveWidth: 0, // 0 = automatic
   grooveDepth: 0, // 0 = automatic
-  floorCutout: true,
+  grooveShoulder: 5,
+  floorCutout: false,
   width: 0, // 0 = card + side walls
-  sideWall: 1.6,
-  endWall: 5,
+  sideWall: 2,
+  endWall: 2.4,
   floorThickness: 1.2,
   cornerRadius: 3,
 };

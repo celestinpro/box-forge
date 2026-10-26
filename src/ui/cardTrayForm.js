@@ -92,7 +92,7 @@ export function cardTrayForm(params, update, rerender) {
       fixed ? stacksField(params, set) : null
     ),
 
-    checkbox({ label: "Finger groove along the top", checked: params.groove, onChange: (v) => set({ groove: v }) }),
+    checkbox({ label: "Finger notch in the front and back walls", checked: params.groove, onChange: (v) => set({ groove: v }) }),
     checkbox({ label: "Slot in the floor to push cards up", checked: params.floorCutout, onChange: (v) => set({ floorCutout: v }) }),
 
     h(
@@ -104,10 +104,11 @@ export function cardTrayForm(params, update, rerender) {
       numberField({ label: "Front and back walls", value: params.endWall, hint: "Thickness at the floor.", onChange: (v) => set({ endWall: v }) }),
       numberField({ label: "Floor", value: params.floorThickness, onChange: (v) => set({ floorThickness: v }) }),
       numberField({ label: "Corner radius", value: params.cornerRadius, onChange: (v) => set({ cornerRadius: v }) }),
-      numberField({ label: "Groove width", value: params.grooveWidth, hint: "0 for automatic.", onChange: (v) => set({ grooveWidth: v }) }),
-      numberField({ label: "Groove depth", value: params.grooveDepth, hint: "0 for automatic.", onChange: (v) => set({ grooveDepth: v }) }),
+      numberField({ label: "Finger notch width", value: params.grooveWidth, hint: "Measured at the top, before the rounded shoulders. 0 for automatic.", onChange: (v) => set({ grooveWidth: v }) }),
+      numberField({ label: "Finger notch depth", value: params.grooveDepth, hint: "0 for automatic (half the tray height).", onChange: (v) => set({ grooveDepth: v }) }),
+      numberField({ label: "Notch shoulder radius", value: params.grooveShoulder, hint: "Rounds the edges where the notch meets the top.", onChange: (v) => set({ grooveShoulder: v }) }),
       numberField({ label: "Divider thickness", value: params.dividerThickness, onChange: (v) => set({ dividerThickness: v }) }),
-      numberField({ label: "Divider slot depth", value: params.slotDepth, hint: "How far removable dividers sink into the walls.", onChange: (v) => set({ slotDepth: v }) })
+      numberField({ label: "Divider slot depth", value: params.slotDepth, hint: "How far removable dividers sink into the walls, measured along the lean.", onChange: (v) => set({ slotDepth: v }) })
     )
   );
 }
