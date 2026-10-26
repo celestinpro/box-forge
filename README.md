@@ -6,13 +6,11 @@ Design 3D-printable deck boxes and token trays for board games, right in the bro
 
 ## What it makes
 
-- **Deck box**: one or more card pockets side by side. Each pocket can have its own card size and stack height. Shallower decks get a raised floor so every deck sits level with the rim. Comes with a slide-over lid, a snap-fit lid, a flat plug-in cover, or no lid.
+- **Deck box**: one or more card pockets side by side. Each pocket can have its own card size and stack height. Shallower decks get a raised floor so every deck sits level with the rim. Comes with a slide-over lid, a flat plug-in cover, or no lid.
 - **Card tray**: an open tray for game inserts where the cards lean back, so tall cards fit under a low lid. Set the tray height (or the lean angle) and size the length to a space in the box or to your stack of cards. Optional finger groove, floor slot, removable dividers (slots plus a printable divider), or fixed dividers sized per stack.
-- **Token tray**: an even grid of compartments with curved (scooped) floors so tokens slide out, plus an optional slide-over or snap-fit lid.
+- **Token tray**: an even grid of compartments with curved (scooped) floors so tokens slide out, plus an optional slide-over lid.
 
 Finger slots and corner radii shrink automatically to fit narrow cards, so small sizes like 45 × 14 mm build without hand-tuning.
-
-**Snap-fit lids** (deck box and token tray): the top of the box forms a collar with a small ridge around it, and the box steps out below the collar. The lid's rim slides over the collar, clicks past the ridge into a matching groove, and ends flush with the box's sides, so the inside keeps its full size. Collar height, rim thickness and snap clearance are adjustable.
 
 Every setting is stored in the page URL, so you can bookmark a box or send it to someone.
 

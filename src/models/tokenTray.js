@@ -2,7 +2,7 @@
 // out easily, and an optional slip-over lid.
 import { drawRoundedRectangle } from "replicad";
 import { clamp, safeFillet, num, requireRange, atZ } from "./util.js";
-import { slipLidSize, buildSlipLid, snapLidSize, snapBody, buildSnapLid } from "./parts.js";
+import { slipLidSize, buildSlipLid } from "./parts.js";
 import { TOKEN_TRAY_DEFAULTS } from "./config.js";
 
 export { TOKEN_TRAY_DEFAULTS } from "./config.js";
@@ -27,14 +27,8 @@ export function tokenTrayLayout(input) {
     throw new Error("Columns and rows must each be between 1 and 12.");
   }
 
-  // Lid style: slide-over, snap-fit, or none. A snap lid's belt comes out of
-  // the outside size, so the tray still fits the space it was sized for.
-  const lidStyle = p.lid === false ? "none" : ["slide", "snap"].includes(p.lidStyle) ? p.lidStyle : "slide";
-  const belt = lidStyle === "snap" ? clamp(num(p.snapBelt, 1.6), 1, 4) : 0;
-  const coreW = width - 2 * belt;
-  const coreD = depth - 2 * belt;
-  const cellX = (coreW - (columns + 1) * wall) / columns;
-  const cellY = (coreD - (rows + 1) * wall) / rows;
+  const cellX = (width - (columns + 1) * wall) / columns;
+  const cellY = (depth - (rows + 1) * wall) / rows;
   const cellZ = height - floor;
   if (cellX < 4 || cellY < 4) {
     throw new Error(`Compartments would be only ${cellX.toFixed(1)} × ${cellY.toFixed(1)} mm. Make the tray bigger or use fewer rows/columns.`);
@@ -45,24 +39,20 @@ export function tokenTrayLayout(input) {
   const outerFillet = cellFillet + wall;
   const scoop = clamp(num(p.scoop, 8), 0, Math.min(cellZ - 0.5, cellY / 2 - 0.5, cellX / 2 - 0.5));
   const lid = slipLidSize({ x: width, y: depth, z: height, fillet: outerFillet, wall, tolerance: lidTol });
-  const snap =
-    lidStyle === "snap"
-      ? snapLidSize({ x: coreW, y: coreD, z: height, fillet: outerFillet, wall, belt, collar: num(p.snapCollar, 6), clearance: num(p.snapClearance, 0.15) })
-      : null;
 
   return {
-    params: { ...p, width, depth, height, columns, rows, wallThickness: wall, floorThickness: floor, lidTolerance: lidTol, lidStyle },
-    width, depth, height, columns, rows, wall, floor, coreW, coreD, lidStyle,
-    cellX, cellY, cellZ, cellFillet, outerFillet, scoop, lid, snap,
+    params: { ...p, width, depth, height, columns, rows, wallThickness: wall, floorThickness: floor, lidTolerance: lidTol },
+    width, depth, height, columns, rows, wall, floor,
+    cellX, cellY, cellZ, cellFillet, outerFillet, scoop, lid,
   };
 }
 
 export function buildTokenTray(params) {
   const L = tokenTrayLayout(params);
   const warnings = [];
-  const { coreW, coreD, height, columns, rows, wall, floor, cellX, cellY, cellZ, cellFillet, outerFillet, scoop } = L;
+  const { width, depth, height, columns, rows, wall, floor, cellX, cellY, cellZ, cellFillet, outerFillet, scoop } = L;
 
-  let tray = L.snap ? snapBody(L.snap) : drawRoundedRectangle(coreW, coreD, outerFillet).sketchOnPlane().extrude(height);
+  let tray = drawRoundedRectangle(width, depth, outerFillet).sketchOnPlane().extrude(height);
 
   // One cell shape, filleted once, then copied into every grid position.
   let cell = (cellFillet > 0.05 ? drawRoundedRectangle(cellX, cellY, cellFillet) : drawRoundedRectangle(cellX, cellY))
@@ -72,16 +62,15 @@ export function buildTokenTray(params) {
 
   for (let i = 0; i < columns; i++) {
     for (let j = 0; j < rows; j++) {
-      const x = -coreW / 2 + wall + cellX / 2 + i * (cellX + wall);
-      const y = -coreD / 2 + wall + cellY / 2 + j * (cellY + wall);
+      const x = -width / 2 + wall + cellX / 2 + i * (cellX + wall);
+      const y = -depth / 2 + wall + cellY / 2 + j * (cellY + wall);
       tray = tray.cut(cell.clone().translate([x, y, 0]));
     }
   }
   tray = safeFillet(tray, Math.min(0.4, wall / 4), atZ(height), warnings, "Top rim");
 
   const parts = [{ name: "tray", shape: tray }];
-  if (L.lidStyle === "slide") parts.push({ name: "lid", shape: buildSlipLid(L.lid, wall, warnings, "y") });
-  if (L.lidStyle === "snap") parts.push({ name: "lid", shape: buildSnapLid(L.snap, warnings) });
+  if (L.params.lid) parts.push({ name: "lid", shape: buildSlipLid(L.lid, wall, warnings, "y") });
   return { parts, layout: L, warnings };
 }
 
@@ -91,9 +80,6 @@ export function describeTokenTray(L) {
     `Tray ${f(L.width)} × ${f(L.depth)} × ${f(L.height)} mm`,
     `${L.columns * L.rows} compartments, each ${f(L.cellX)} × ${f(L.cellY)} × ${f(L.cellZ)} mm`,
   ];
-  if (L.lidStyle === "slide") lines.push(`Lid ${f(L.lid.outerX)} × ${f(L.lid.outerY)} × ${f(L.lid.outerZ)} mm`);
-  if (L.snap) {
-    lines.push(`Snap lid ${f(L.snap.outerX)} × ${f(L.snap.outerY)} × ${f(L.snap.lidHeight)} mm; ${f(L.snap.closedHeight)} mm tall when closed`);
-  }
+  if (L.params.lid) lines.push(`Lid ${f(L.lid.outerX)} × ${f(L.lid.outerY)} × ${f(L.lid.outerZ)} mm`);
   return lines;
 }
