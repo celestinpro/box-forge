@@ -4,6 +4,7 @@ import { generatorPage } from "./ui/generatorPage.js";
 import { quickDrawForm } from "./ui/quickDrawForm.js";
 import { tokenTrayForm } from "./ui/tokenTrayForm.js";
 import { cardTrayForm } from "./ui/cardTrayForm.js";
+import { tokenInsertPage } from "./ui/tokenInsertPage.js";
 import { QUICK_DRAW_DEFAULTS, TOKEN_TRAY_DEFAULTS, CARD_TRAY_DEFAULTS } from "./models/config.js";
 import { warmUp } from "./cad/client.js";
 
@@ -41,6 +42,18 @@ const cardTrayArt = `
   </g>
 </svg>`;
 
+const insertArt = `
+<svg viewBox="0 0 200 120" aria-hidden="true">
+  <g fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round">
+    <path d="M18 78 L98 104 L182 70 L102 44 Z"/>
+    <path d="M18 78 L18 64 L102 30 L182 56 L182 70"/>
+    <path d="M98 104 L98 90 L182 56"/><path d="M98 90 L18 64"/>
+    <path d="M52 62 c-6 -8 6 -16 12 -10 c4 -6 16 -2 12 6 c6 4 -2 14 -10 10 c-4 6 -16 2 -14 -6 z" opacity=".7"/>
+    <circle cx="110" cy="58" r="9" opacity=".7"/>
+    <path d="M138 66 l8 -12 l8 12 l-8 6 z" opacity=".7"/>
+  </g>
+</svg>`;
+
 const GENERATORS = [
   {
     path: "quick-draw",
@@ -59,6 +72,12 @@ const GENERATORS = [
     title: "Card tray",
     blurb: "An open tray for game inserts. The cards lean back so tall cards fit a low box, with a finger groove and optional dividers.",
     art: cardTrayArt,
+  },
+  {
+    path: "token-insert",
+    title: "Token insert",
+    blurb: "Photograph your tokens next to a 50 mm square and get a tray with a pocket shaped like each one, finger notches included.",
+    art: insertArt,
   },
 ];
 
@@ -97,6 +116,7 @@ function home() {
 }
 
 const ROUTES = {
+  "token-insert": tokenInsertPage,
   "": home,
   "quick-draw": () =>
     generatorPage({

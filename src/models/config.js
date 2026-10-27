@@ -70,3 +70,24 @@ export const CARD_TRAY_DEFAULTS = {
   floorThickness: 1.2,
   cornerRadius: 3,
 };
+
+export const TOKEN_INSERT_DEFAULTS = {
+  clearance: 0.25, // added around every token
+  gap: 1.6, // wall between pockets
+  border: 3, // outer wall
+  sizeMode: "fit", // fit | set
+  width: 120,
+  depth: 80,
+  heightMode: "auto", // auto | set
+  height: 10,
+  floor: 1.2,
+  extraDepth: 0, // pockets deeper than the tokens
+  rounding: 0.7, // rounded pocket and tray edges
+  corner: 3,
+  notch: true,
+  notchDiameter: 0, // 0 = automatic
+  inlay: false,
+  inlayThickness: 0.6,
+  referenceSize: 50,
+  ignoreShadows: true,
+};
