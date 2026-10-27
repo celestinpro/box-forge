@@ -8,7 +8,7 @@ Design 3D-printable deck boxes and token trays for board games, right in the bro
 
 - **Deck box**: one or more card pockets side by side. Each pocket can have its own card size and stack height. Shallower decks get a raised floor so every deck sits level with the rim. Comes with a cap that slides over the box, a sliding lid, a flat plug-in cover, or no lid.
 - **Card tray**: an open tray for game inserts where the cards lean back, so tall cards fit under a low lid. Set the tray height (or the lean angle) and size the length to a space in the box or to your stack of cards. Optional finger groove, floor slot, removable dividers (slots plus a printable divider), or fixed dividers sized per stack.
-- **Token insert**: photograph your tokens on plain paper next to a 50 × 50 mm square (or upload an SVG silhouette) and get a tray with a pocket shaped like each token, plus finger notches and optional coloured floor inlays. Tracing runs in the browser; see [How token tracing works](#how-token-tracing-works).
+- **Token insert**: photograph your tokens on plain paper next to a 50 × 50 mm square (or upload an SVG silhouette) and get a tray with a pocket shaped like each token, plus finger notches, optional lift cutouts (round bites in the tray sides so you can lift the insert out of the game box) and optional coloured floor inlays. Tracing runs in the browser; see [How token tracing works](#how-token-tracing-works).
 - **Token tray**: an even grid of compartments with curved (scooped) floors so tokens slide out, plus an optional cap or sliding lid.
 
 Finger slots and corner radii shrink automatically to fit narrow cards, so small sizes like 45 × 14 mm build without hand-tuning.

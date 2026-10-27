@@ -16,6 +16,10 @@ export const LAYOUT_DEFAULTS = {
   depth: 80,
   notch: true,
   notchDiameter: 0, // 0 = automatic
+  lift: false, // lift cutouts in the tray sides
+  liftSides: "long", // long | short | all
+  liftWidth: 20,
+  liftDepth: 8,
 };
 
 /** Every pocket to place: one per token, or one per piece when not stacked. */
@@ -226,7 +230,120 @@ export function analyse(tokens, items, settings = {}) {
       }
     }
   }
-  return { tray, problems, bad, notches, shapes };
+  const lift = s.lift ? liftCutouts(tray, shapes, notches, s) : { cuts: [], missing: [], grown: 0 };
+  return { tray: lift.tray ?? tray, problems, bad, notches, shapes, lifts: lift.cuts, liftMissing: lift.missing, liftGrown: lift.grown };
+}
+
+export const LIFT_MIN_DEPTH = 4; // a fingertip grip
+
+/** Which tray sides get a lift cutout. */
+function liftSideNames(tray, which) {
+  if (which === "all") return ["front", "back", "left", "right"];
+  const long = tray.w >= tray.h ? ["front", "back"] : ["left", "right"];
+  const short = tray.w >= tray.h ? ["left", "right"] : ["front", "back"];
+  return which === "short" ? short : long;
+}
+
+/** A side as an edge: start point, direction along it, inward normal, length. */
+function sideOf(tray, name) {
+  const { x0, y0, w, h } = tray;
+  if (name === "front") return { p: [x0, y0], dir: [1, 0], n: [0, 1], len: w };
+  if (name === "back") return { p: [x0, y0 + h], dir: [1, 0], n: [0, -1], len: w };
+  if (name === "left") return { p: [x0, y0], dir: [0, 1], n: [1, 0], len: h };
+  return { p: [x0 + w, y0], dir: [0, 1], n: [-1, 0], len: h };
+}
+
+/**
+ * Lift cutouts: a round bite through the full height of a tray side, so
+ * fingers can reach down beside the insert and lift it out of the game box.
+ * The bite is the part of a circle (radius R, centre outside the tray) that
+ * crosses the wall: `width` wide at the edge and `depth` deep.
+ *
+ * For each side: try the middle, then slide along the side to the nearest
+ * spot that keeps a full wall (`gap`) to every pocket and finger notch; then
+ * try shallower bites down to a fingertip; then, in "fit" mode, grow the tray
+ * on that side just enough. In "set" mode a side with no room is skipped.
+ */
+export function liftCutouts(tray0, shapes, notches, s) {
+  const width = s.liftWidth;
+  const want = Math.min(s.liftDepth, width / 2);
+  const minDepth = Math.min(want, LIFT_MIN_DEPTH);
+  const corner = s.corner ?? 3;
+  const wall = s.clearance + s.gap; // token outline → cutout
+  const names = liftSideNames(tray0, s.liftSides);
+  let tray = { ...tray0 };
+  let grown = 0;
+
+  // Smallest wall left between a cutout circle and the pockets (≥ 0 fits).
+  const roomFor = (c, R) => {
+    let room = Infinity;
+    for (const o of shapes) {
+      if (o.box.x0 - c[0] > R + wall + 1 || c[0] - o.box.x1 > R + wall + 1 || o.box.y0 - c[1] > R + wall + 1 || c[1] - o.box.y1 > R + wall + 1) continue;
+      const d = pointInPolygon(c, o.poly) ? -outlineDistance(c, o.poly) : outlineDistance(c, o.poly);
+      room = Math.min(room, d - R - wall);
+    }
+    for (const n of notches.values()) {
+      if (!n) continue;
+      room = Math.min(room, Math.hypot(c[0] - n.x, c[1] - n.y) - R - n.r - s.gap);
+    }
+    return room;
+  };
+  const circleAt = (side, t, d) => {
+    const R = (width * width) / 4 / (2 * d) + d / 2;
+    const e = [side.p[0] + side.dir[0] * t, side.p[1] + side.dir[1] * t];
+    return { e, c: [e[0] - side.n[0] * (R - d), e[1] - side.n[1] * (R - d)], R };
+  };
+
+  for (let round = 0; round < 6; round++) {
+    const cuts = [];
+    const missing = [];
+    let grow = null;
+    for (const name of names) {
+      const side = sideOf(tray, name);
+      const margin = corner + width / 2 + 1; // keep clear of the rounded corners
+      if (side.len < 2 * margin) {
+        missing.push({ side: name, reason: "side too short" });
+        continue;
+      }
+      let found = null;
+      // Middle first, then outward in 0.5 mm steps; deepest bite first.
+      const half = side.len / 2 - margin;
+      const offsets = [0];
+      for (let k = 0.5; k <= half + 1e-9; k += 0.5) offsets.push(k, -k);
+      const depths = [];
+      for (let d = want; d > minDepth + 1e-9; d -= 0.5) depths.push(d);
+      depths.push(minDepth);
+      for (const d of depths) {
+        if (found) break;
+        for (const off of offsets) {
+          const C = circleAt(side, side.len / 2 + off, d);
+          if (roomFor(C.c, C.R) >= -1e-9) {
+            found = { side: name, x: C.e[0], y: C.e[1], cx: C.c[0], cy: C.c[1], r: C.R, width, depth: d, normal: side.n };
+            break;
+          }
+        }
+      }
+      if (found) {
+        cuts.push(found);
+        continue;
+      }
+      if (s.sizeMode !== "set") {
+        // Grow this side so the full-depth bite fits in the middle.
+        const C = circleAt(side, side.len / 2, want);
+        grow = { name, by: -roomFor(C.c, C.R) + 0.05 };
+        break;
+      }
+      missing.push({ side: name, reason: "no room" });
+    }
+    if (!grow) return { cuts, missing, grown, tray: grown ? tray : null };
+    const by = Math.max(0.05, grow.by);
+    grown += by;
+    if (grow.name === "front") tray = { ...tray, y0: tray.y0 - by, h: tray.h + by };
+    else if (grow.name === "back") tray = { ...tray, h: tray.h + by };
+    else if (grow.name === "left") tray = { ...tray, x0: tray.x0 - by, w: tray.w + by };
+    else tray = { ...tray, w: tray.w + by };
+  }
+  return { cuts: [], missing: names.map((side) => ({ side, reason: "no room" })), grown, tray };
 }
 
 /** Points every `step` mm along a polygon's outline. */

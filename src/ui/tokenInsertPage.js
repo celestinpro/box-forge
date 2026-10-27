@@ -520,6 +520,19 @@ export function tokenInsertPage() {
       s.heightMode === "set" ? numberField({ label: "Tray height", value: s.height, onChange: (v) => up({ height: v }) }) : null,
       h("button", { type: "button", on: { click: () => arrange() } }, "Auto-arrange pockets"),
       checkbox({ label: "Finger notches", checked: s.notch, onChange: (v) => up({ notch: v }, { relayout: true }) }),
+      checkbox({ label: "Lift cutouts", checked: s.lift, onChange: (v) => up({ lift: v }, { rerender: true }) }),
+      s.lift
+        ? h(
+            "div.subfields",
+            h("p.hint", "Round bites in the tray sides, so you can get your fingers down beside the insert and lift it out of the game box."),
+            segmented({ label: "Sides", value: s.liftSides, options: [["long", "Long sides"], ["short", "Short sides"], ["all", "All four"]], onChange: (v) => up({ liftSides: v }) }),
+            h(
+              "div.field-row",
+              numberField({ label: "Width", value: s.liftWidth, onChange: (v) => up({ liftWidth: v }) }),
+              numberField({ label: "Depth", value: s.liftDepth, hint: "How far it bites in. Shallower where pockets are in the way.", onChange: (v) => up({ liftDepth: v }) })
+            )
+          )
+        : null,
       checkbox({ label: "Coloured floor inlays", checked: s.inlay, onChange: (v) => up({ inlay: v }, { rerender: true }) }),
       s.inlay ? h("p.hint", "Thin plates for the pocket floors, printed in a bright colour, so an empty pocket stands out. The pockets get deeper by the inlay thickness.") : null,
       h(
@@ -562,7 +575,14 @@ export function tokenInsertPage() {
       "aria-label": `Tray layout, ${fmt(tray.w)} by ${fmt(tray.h)} mm`,
     });
     const g = svg("g", { transform: "scale(1,-1)" });
-    g.append(svg("rect", { x: tray.x0, y: tray.y0, width: tray.w, height: tray.h, rx: state.settings.corner, class: "tray" }));
+    const trayRect = svg("rect", { x: tray.x0, y: tray.y0, width: tray.w, height: tray.h, rx: state.settings.corner, class: "tray" });
+    if (A.lifts.length) {
+      // Lift cutouts: bites masked out of the tray, outlined where they cut.
+      const mask = svg("mask", { id: "lift-mask", maskUnits: "userSpaceOnUse", x: tray.x0 - 50, y: tray.y0 - 50, width: tray.w + 100, height: tray.h + 100 }, svg("rect", { x: tray.x0 - 50, y: tray.y0 - 50, width: tray.w + 100, height: tray.h + 100, fill: "#fff" }), ...A.lifts.map((c) => svg("circle", { cx: c.cx, cy: c.cy, r: c.r, fill: "#000" })));
+      const clip = svg("clipPath", { id: "lift-clip" }, svg("rect", { x: tray.x0, y: tray.y0, width: tray.w, height: tray.h, rx: state.settings.corner }));
+      trayRect.setAttribute("mask", "url(#lift-mask)");
+      g.append(svg("defs", {}, mask, clip), trayRect, svg("g", { "clip-path": "url(#lift-clip)" }, ...A.lifts.map((c) => svg("circle", { cx: c.cx, cy: c.cy, r: c.r, class: "lift" }))));
+    } else g.append(trayRect);
     for (const it of state.items) {
       const t = byId.get(it.tokenId);
       if (!t) continue;
@@ -696,6 +716,11 @@ export function tokenInsertPage() {
       if (A.bad.size) problems.push(h("p.error", `${A.bad.size} pocket${A.bad.size === 1 ? " is" : "s are"} too close to another pocket or outside the tray (shown in red). Drag ${A.bad.size === 1 ? "it" : "them"} or use Auto-arrange.`));
       const noNotch = [...A.notches.values()].filter((n) => n === null).length;
       if (noNotch) problems.push(h("p.note", `${noNotch} pocket${noNotch === 1 ? " has" : "s have"} no room for a finger notch. Drag ${noNotch === 1 ? "it" : "them"} away from the others, or use Auto-arrange.`));
+      if (A.liftGrown > 0) problems.push(h("p.note", `The tray is ${fmt(A.liftGrown)} mm bigger to make room for the lift cutouts.`));
+      const want = Math.min(state.settings.liftDepth, state.settings.liftWidth / 2);
+      const shallow = A.lifts.filter((c) => c.depth < want - 1e-6);
+      if (shallow.length) problems.push(h("p.note", `Lift cutout on the ${shallow.map((c) => c.side).join(" and ")} is only ${shallow.map((c) => fmt(c.depth)).join(" / ")} mm deep: pockets are in the way.`));
+      for (const m of A.liftMissing) problems.push(h("p.note", m.reason === "side too short" ? `No lift cutout on the ${m.side}: that side is too short for a ${fmt(state.settings.liftWidth)} mm cutout.` : `No room for a lift cutout on the ${m.side}. Drag pockets away from that side, or make the tray bigger.`));
     }
     if (arrangeNote) problems.push(h("p.error", arrangeNote));
     if (tab !== "3d" || builtVersion !== version) summary.replaceChildren(...out);
@@ -807,10 +832,11 @@ export function tokenInsertPage() {
     }
     const W = fmt(tray.w, 3);
     const H = fmt(tray.h, 3);
+    const lifts = A.lifts.map((c) => { const [x, y] = tx([c.cx, c.cy]); return `\n    <circle cx="${fmt(x, 3)}" cy="${fmt(y, 3)}" r="${fmt(c.r, 3)}"/>`; }).join("");
     const text = `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="${W}mm" height="${H}mm" viewBox="0 0 ${W} ${H}">
   <g id="tray" fill="none" stroke="#000" stroke-width="0.2"><rect x="0" y="0" width="${W}" height="${H}" rx="${state.settings.corner}"/></g>
-  <g id="pockets" fill="none" stroke="#c00" stroke-width="0.2">${pockets.map((d) => `\n    <path d="${d}"/>`).join("")}
+${lifts ? `  <g id="lift-cutouts" fill="none" stroke="#080" stroke-width="0.2">${lifts}\n  </g>\n` : ""}  <g id="pockets" fill="none" stroke="#c00" stroke-width="0.2">${pockets.map((d) => `\n    <path d="${d}"/>`).join("")}
   </g>
   <g id="tokens" fill="none" stroke="#06c" stroke-width="0.1">${outlines.map((d) => `\n    <path d="${d}"/>`).join("")}
   </g>

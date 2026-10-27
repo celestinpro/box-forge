@@ -351,6 +351,7 @@ details.tips li + li { margin-top: 4px; }
 .layout-view svg { position: absolute; inset: 12px; width: calc(100% - 24px); height: calc(100% - 24px); touch-action: none; user-select: none; }
 .layout-view .empty { color: #e4efe9; padding: 24px; }
 .layout-view .tray { fill: var(--pla); stroke: var(--pla-deep); stroke-width: 0.4; }
+.layout-view .lift { fill: none; stroke: var(--pla-deep); stroke-width: 0.8; pointer-events: none; }
 .layout-view .pocket { cursor: grab; }
 .layout-view .pocket:focus { outline: none; }
 .layout-view .pocket .notch { fill: #8f6d06; opacity: 0.55; }

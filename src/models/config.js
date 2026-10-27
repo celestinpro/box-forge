@@ -86,6 +86,10 @@ export const TOKEN_INSERT_DEFAULTS = {
   corner: 3,
   notch: true,
   notchDiameter: 0, // 0 = automatic
+  lift: false,
+  liftSides: "long", // long | short | all
+  liftWidth: 20,
+  liftDepth: 8,
   inlay: false,
   inlayThickness: 0.6,
   referenceSize: 50,

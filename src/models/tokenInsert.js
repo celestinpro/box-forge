@@ -1,7 +1,7 @@
 // Token insert: a tray with a pocket shaped like each traced token, plus a
 // finger notch per pocket and optional thin coloured inlays for the pocket
 // floors (so an empty pocket stands out).
-import { draw, drawRoundedRectangle } from "replicad";
+import { draw, drawCircle, drawRoundedRectangle } from "replicad";
 import { safeFillet, atZ, num, requireRange, clamp } from "./util.js";
 import { analyse, placed, LAYOUT_DEFAULTS } from "../trace/layout.js";
 import { pocketOutline } from "../trace/outline.js";
@@ -14,11 +14,15 @@ export const pocketDepth = (t, s) => num(t.thickness, 3) * (t.stack === false ? 
 
 export function tokenInsertLayout(params) {
   const s = { ...LAYOUT_DEFAULTS, ...TOKEN_INSERT_DEFAULTS, ...(params.settings || {}) };
-  for (const k of ["clearance", "gap", "border", "floor", "extraDepth", "rounding", "inlayThickness", "width", "depth", "height"]) s[k] = num(s[k], TOKEN_INSERT_DEFAULTS[k] ?? LAYOUT_DEFAULTS[k]);
+  for (const k of ["clearance", "gap", "border", "floor", "extraDepth", "rounding", "inlayThickness", "width", "depth", "height", "liftWidth", "liftDepth"]) s[k] = num(s[k], TOKEN_INSERT_DEFAULTS[k] ?? LAYOUT_DEFAULTS[k]);
   requireRange("Clearance", s.clearance, 0, 3);
   requireRange("Wall between pockets", s.gap, 0.8, 20);
   requireRange("Outer wall", s.border, 1, 40);
   requireRange("Floor", s.floor, 0.4, 10);
+  if (s.lift) {
+    requireRange("Lift cutout width", s.liftWidth, 8, 60);
+    requireRange("Lift cutout depth", s.liftDepth, 2, 30);
+  }
   const tokens = (params.tokens || []).filter((t) => t.include !== false);
   if (!tokens.length) throw new Error("No tokens yet. Upload a photo or SVG and include at least one token.");
   for (const t of tokens) requireRange(`${t.name || "Token"} thickness`, num(t.thickness, 3), 0.3, 100);
@@ -84,6 +88,11 @@ export function buildTokenInsert(params) {
       inlays.push(inlay);
     }
   });
+  // Lift cutouts: a round bite through the full height of a side.
+  for (const c of L.lifts) {
+    const bite = drawCircle(c.r).sketchOnPlane("XY", -1).extrude(height + 2).translate([c.cx - tray.x0, c.cy - tray.y0, 0]);
+    cutter = cutter.fuse(bite);
+  }
   body = body.cut(cutter);
   const parts = [{ name: "tray", shape: body }];
   if (inlays.length) parts.push({ name: "inlays", shape: inlays.reduce((a, b) => a.fuse(b)) });
@@ -97,6 +106,12 @@ export function describeTokenInsert(L) {
   const lines = [`Tray ${f(L.tray.w)} × ${f(L.tray.h)} × ${f(L.height)} mm`, `${pockets} pocket${pockets === 1 ? "" : "s"} for ${pieces} piece${pieces === 1 ? "" : "s"}`];
   const missing = [...L.notches.values()].filter((n) => n === null).length;
   if (missing) lines.push(`${missing} pocket${missing === 1 ? " has" : "s have"} no room for a finger notch`);
+  if (L.s.lift) {
+    const sides = L.lifts.map((c) => `${c.side}${c.depth < Math.min(L.s.liftDepth, L.s.liftWidth / 2) - 1e-6 ? ` (${f(c.depth)} mm deep, no room for more)` : ""}`);
+    if (L.lifts.length) lines.push(`Lift cutouts: ${sides.join(", ")}`);
+    if (L.liftGrown > 0) lines.push(`Tray grown ${f(L.liftGrown)} mm to make room for the lift cutouts`);
+    for (const m of L.liftMissing) lines.push(`No lift cutout on the ${m.side}: ${m.reason === "side too short" ? "that side is too short" : "pockets are in the way. Drag them aside or make the tray bigger"}`);
+  }
   if (L.s.inlay) lines.push(`Inlays ${f(L.s.inlayThickness)} mm: print them in a bright colour and drop them in the pockets`);
   return lines;
 }
