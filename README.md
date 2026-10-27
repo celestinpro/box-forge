@@ -23,7 +23,7 @@ Every setting is stored in the page URL, so you can bookmark a box or send it to
 2. **Shapes**: pixels above a threshold set from the paper's own noise become shapes. The *Add* and *Erase* brush fixes anything the tracer got wrong.
 3. **Edges**: each shape's edge is then placed halfway between the paper colour and that token's colour, which keeps sizes unbiased even with JPEG colour bleed or a slightly soft focus.
 4. **Scale**: the 50 mm square's four sides are fitted with straight lines; their corners give a separate X and Y scale (the "50 / measured" correction), so a slightly skewed scan still measures correctly.
-5. **Pockets**: each outline is grown by the clearance (0.25 mm by default), joined with its finger notch, and cut into the tray at the token's thickness (times the stack height).
+5. **Pockets**: each outline is grown by the clearance (0.25 mm by default), joined with its finger notch, and cut into the tray at the token's thickness (times the stack height), or at a pocket depth you set for that token.
 
 Accuracy on the test photos: within about 0.05 mm on edges, and exact scale. For best results use a scanner app, contrasting paper, and soft light.
 

@@ -8,7 +8,7 @@ import { h, numberField, segmented, checkbox, debounce } from "./dom.js";
 import { Viewer } from "../viewer.js";
 import { build, exportPart } from "../cad/client.js";
 import { setImage, traceImage } from "../trace/client.js";
-import { autoPack, analyse, expandInstances, placed } from "../trace/layout.js";
+import { autoPack, analyse, expandInstances, placed, pocketDepth } from "../trace/layout.js";
 import { pocketOutline } from "../trace/outline.js";
 import { toPath } from "../trace/geometry.js";
 import { TOKEN_INSERT_DEFAULTS } from "../models/config.js";
@@ -433,6 +433,29 @@ export function tokenInsertPage() {
   }
 
   // ---------- token list
+  /**
+   * Pocket depth override. Blank = automatic (thickness × stack + extra
+   * depth), shown as the placeholder so you can see what you'd replace.
+   */
+  const autoDepthText = (t) => `auto ${fmt(pocketDepth({ ...t, depth: 0 }, { ...state.settings, inlay: false }))}`;
+  /** Refresh every "auto" depth hint (after thickness, count or extra depth change). */
+  const refreshDepthHints = () => {
+    for (const t of state.tokens) {
+      const inp = tokenList.querySelector(`#t${t.uid}-depth`);
+      if (inp) inp.placeholder = autoDepthText(t);
+    }
+  };
+  function depthField(t, set) {
+    const id = `t${t.uid}-depth`;
+    const inp = h("input", { id, type: "number", inputmode: "decimal", step: 0.1, min: 0.3, value: t.depth > 0 ? t.depth : "", placeholder: autoDepthText(t) });
+    inp.addEventListener("input", () => {
+      const v = parseFloat(inp.value);
+      if (inp.value.trim() === "") set({ depth: null });
+      else if (Number.isFinite(v) && v >= 0.3) set({ depth: v });
+    });
+    return h("div.field.mini", h("label", { for: id }, "Pocket depth"), h("div.input-unit", inp, h("span.unit", "mm")));
+  }
+
   function renderTokens() {
     if (!state.tokens.length) {
       tokenList.replaceChildren(h("p.hint", "Traced tokens appear here. Give each one a name and its thickness."));
@@ -441,6 +464,7 @@ export function tokenInsertPage() {
     const rows = state.tokens.map((t, i) => {
       const set = (patch, layoutChange = false) => {
         Object.assign(t, patch);
+        refreshDepthHints();
         if (layoutChange && needsArrange()) arrange();
         else renderLayout();
         drawPhoto();
@@ -475,6 +499,7 @@ export function tokenInsertPage() {
               num("Thickness", t.thickness, 0.1, 0.3, (v) => set({ thickness: v })),
               num("How many", t.count, 1, 1, (v) => { set({ count: Math.round(v) }, true); renderTokens(); }, "", "change"),
               t.count > 1 ? checkbox({ label: "Stack in one pocket", checked: t.stack !== false, onChange: (v) => set({ stack: v }, true) }) : null,
+              depthField(t, set),
               checkbox({ label: "Finger notch", checked: t.notch !== false, onChange: (v) => set({ notch: v }, true) })
             ),
         h(
@@ -542,7 +567,7 @@ export function tokenInsertPage() {
         numberField({ label: "Wall between pockets", value: s.gap, onChange: (v) => up({ gap: v }) }),
         numberField({ label: "Outer wall", value: s.border, onChange: (v) => up({ border: v }) }),
         numberField({ label: "Floor", value: s.floor, onChange: (v) => up({ floor: v }) }),
-        numberField({ label: "Extra pocket depth", value: s.extraDepth, step: 0.1, hint: "Pockets this much deeper than the tokens.", onChange: (v) => up({ extraDepth: v }) }),
+        numberField({ label: "Extra pocket depth", value: s.extraDepth, step: 0.1, hint: "Pockets this much deeper than the tokens.", onChange: (v) => { up({ extraDepth: v }); refreshDepthHints(); } }),
         numberField({ label: "Finger notch size", value: s.notchDiameter, hint: "0 = automatic (60% of the token, 10–20 mm).", onChange: (v) => up({ notchDiameter: v }, { relayout: true }) }),
         s.inlay ? numberField({ label: "Inlay thickness", value: s.inlayThickness, step: 0.1, onChange: (v) => up({ inlayThickness: v }) }) : null,
         numberField({ label: "Tray edge rounding", value: s.rounding, step: 0.1, onChange: (v) => up({ rounding: v }) })

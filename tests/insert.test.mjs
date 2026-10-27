@@ -165,3 +165,24 @@ test("lift cutouts: no room → skipped in a set tray, tray grows in fit mode", 
   const tiny = analyse([token(3, circlePts(5))], [{ key: "3:0", tokenId: 3, x: 0, y: 0, angle: 0 }], { lift: true, liftSides: "all", notch: false });
   assert.ok(tiny.liftMissing.every((m) => m.reason === "side too short") && tiny.liftMissing.length === 4);
 });
+
+test("pocket depth: set per token overrides thickness × stack; blank stays automatic", () => {
+  const tokens = [
+    token(1, circlePts(11), { thickness: 2, count: 5 }), // stack of 5 → 10 mm
+    token(2, blob(12), { thickness: 2, count: 5, depth: 4 }), // set: 4 mm
+    token(3, blob(9), { thickness: 2, depth: null }), // blank → 2 mm
+  ];
+  const { items } = autoPack(tokens);
+  const out = MODELS["token-insert"].build({ tokens, items, settings: { extraDepth: 0.5 } });
+  const L = out.layout;
+  const depthOf = (id) => L.depths[L.items.findIndex((it) => it.tokenId === id)];
+  assert.equal(depthOf(1), 10.5);
+  assert.equal(depthOf(2), 4, "set depth ignores extra depth");
+  assert.equal(depthOf(3), 2.5);
+  assert.equal(L.height, 10.5 + 1.2);
+  assert.ok(valid(out.parts[0].shape));
+  // Inlays still sit under a set depth.
+  const withInlay = MODELS["token-insert"].build({ tokens, items, settings: { inlay: true } });
+  assert.equal(withInlay.layout.depths[withInlay.layout.items.findIndex((it) => it.tokenId === 2)], 4.6);
+  assert.throws(() => MODELS["token-insert"].build({ tokens: [token(1, circlePts(8), { depth: 200 })], items: [{ key: "1:0", tokenId: 1, x: 20, y: 20, angle: 0 }] }), /pocket depth must be between/);
+});

@@ -22,6 +22,18 @@ export const LAYOUT_DEFAULTS = {
   liftDepth: 8,
 };
 
+/**
+ * Pocket depth for a token (mm, from the tray top to the pocket floor).
+ * Automatic: one piece, or the whole stack, plus any extra depth. A depth set
+ * on the token replaces that. Inlays always add their thickness underneath.
+ */
+export function pocketDepth(t, s) {
+  const inlay = s.inlay ? s.inlayThickness : 0;
+  if (t.depth > 0) return t.depth + inlay;
+  const thickness = Number.isFinite(+t.thickness) ? +t.thickness : 3;
+  return thickness * (t.stack === false ? 1 : Math.max(1, Math.round(t.count ?? 1))) + s.extraDepth + inlay;
+}
+
 /** Every pocket to place: one per token, or one per piece when not stacked. */
 export function expandInstances(tokens) {
   const out = [];

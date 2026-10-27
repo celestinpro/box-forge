@@ -3,14 +3,13 @@
 // floors (so an empty pocket stands out).
 import { draw, drawCircle, drawRoundedRectangle } from "replicad";
 import { safeFillet, atZ, num, requireRange, clamp } from "./util.js";
-import { analyse, placed, LAYOUT_DEFAULTS } from "../trace/layout.js";
+import { analyse, placed, pocketDepth, LAYOUT_DEFAULTS } from "../trace/layout.js";
 import { pocketOutline } from "../trace/outline.js";
 import { TOKEN_INSERT_DEFAULTS } from "./config.js";
 
 export { TOKEN_INSERT_DEFAULTS } from "./config.js";
 
-/** Pocket depth for a token: one piece, or the whole stack. */
-export const pocketDepth = (t, s) => num(t.thickness, 3) * (t.stack === false ? 1 : Math.max(1, Math.round(t.count ?? 1))) + s.extraDepth + (s.inlay ? s.inlayThickness : 0);
+export { pocketDepth } from "../trace/layout.js";
 
 export function tokenInsertLayout(params) {
   const s = { ...LAYOUT_DEFAULTS, ...TOKEN_INSERT_DEFAULTS, ...(params.settings || {}) };
@@ -25,7 +24,10 @@ export function tokenInsertLayout(params) {
   }
   const tokens = (params.tokens || []).filter((t) => t.include !== false);
   if (!tokens.length) throw new Error("No tokens yet. Upload a photo or SVG and include at least one token.");
-  for (const t of tokens) requireRange(`${t.name || "Token"} thickness`, num(t.thickness, 3), 0.3, 100);
+  for (const t of tokens) {
+    requireRange(`${t.name || "Token"} thickness`, num(t.thickness, 3), 0.3, 100);
+    if (t.depth != null && t.depth !== "" && t.depth !== 0) requireRange(`${t.name || "Token"} pocket depth`, num(t.depth, NaN), 0.3, 100);
+  }
   const items = (params.items || []).filter((it) => tokens.some((t) => t.id === it.tokenId));
   if (!items.length) throw new Error("Arrange the tokens first.");
 
