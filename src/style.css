@@ -371,3 +371,27 @@ details.tips li + li { margin-top: 4px; }
 @media (max-width: 820px) {
   .view-host { min-height: 60vh; }
 }
+
+/* ---------- Token tray section editor ---------- */
+.section-editor { display: flex; flex-direction: column; gap: 10px; }
+.section-view { background: var(--sheet, #f4f6f5); border: 1px solid var(--line); border-radius: var(--radius-s, 8px); padding: 8px; }
+.section-view svg { display: block; width: 100%; height: auto; max-height: 340px; touch-action: none; user-select: none; }
+.section-view .tray { fill: var(--pla-deep); }
+.section-view .cell { fill: var(--pla); cursor: pointer; }
+.section-view .cell:hover { fill: #f7d35a; }
+.section-view .cell.selected { fill: #fff3c4; stroke: var(--focus); stroke-width: 0.8; }
+.section-view .cell:focus { outline: none; }
+.section-view .cell:focus-visible { stroke: var(--focus); stroke-width: 1.2; }
+.section-view .wall { fill: transparent; }
+.section-view .wall.ew { cursor: ew-resize; }
+.section-view .wall.ns { cursor: ns-resize; }
+.section-view .wall:hover, .section-view .wall:focus-visible { fill: rgba(30, 90, 200, 0.35); outline: none; }
+.section-view .size { fill: #4a3a00; text-anchor: middle; dominant-baseline: central; pointer-events: none; font-family: "Atkinson Hyperlegible", system-ui, sans-serif; }
+.section-tools { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.section-tools button { padding: 7px 4px; font-size: 0.85rem; }
+.section-size { display: flex; flex-direction: column; gap: 6px; font-size: 0.9rem; }
+.section-size .what { font-weight: 700; }
+.section-size .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.section-size label { display: flex; align-items: center; gap: 6px; }
+.section-size .input-unit { flex: 1; min-width: 0; }
+details.grid-start summary { cursor: pointer; font-weight: 600; margin-bottom: 8px; }

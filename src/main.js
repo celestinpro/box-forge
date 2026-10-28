@@ -130,7 +130,7 @@ const ROUTES = {
     generatorPage({
       model: "token-tray",
       title: "Token tray",
-      intro: "Set the outside size and how many compartments you want. Compartments are divided evenly.",
+      intro: "Set the outside size, then split the tray into compartments: as an even grid, or any layout you like by splitting compartments and dragging the walls.",
       defaults: TOKEN_TRAY_DEFAULTS,
       form: tokenTrayForm,
     }),
