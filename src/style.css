@@ -358,6 +358,12 @@ details.tips li + li { margin-top: 4px; }
 .layout-view .pocket .clear { fill: none; stroke: #6b5200; stroke-linejoin: round; }
 .layout-view .pocket .token { stroke: rgba(0, 0, 0, 0.35); stroke-width: 0.25; }
 .layout-view .pocket .label { font: 700 5px "Atkinson Hyperlegible", system-ui, sans-serif; fill: #fff; text-anchor: middle; dominant-baseline: central; paint-order: stroke; stroke: rgba(0, 0, 0, 0.6); stroke-width: 0.8; pointer-events: none; }
+.layout-view .rotate-handle { cursor: grab; }
+.layout-view .rotate-handle line { stroke: var(--focus); stroke-width: 0.5; stroke-dasharray: 1.5 1; pointer-events: none; }
+.layout-view .rotate-handle .hit { fill: transparent; }
+.layout-view .rotate-handle .knob { fill: #fff; stroke: var(--focus); stroke-width: 0.8; }
+.angle-field { display: inline-flex; align-items: center; gap: 6px; font-size: 0.9rem; }
+.angle-field input { width: 5.5em; padding: 4px 6px; border: 1px solid var(--line); border-radius: 6px; font: inherit; }
 .layout-view .pocket.selected .clear, .layout-view .pocket:focus-visible .clear { stroke: var(--focus); stroke-width: 1.2; }
 .layout-view .pocket.bad .clear { stroke: var(--error); stroke-width: 1.4; }
 .layout-view .pocket.bad .token { fill-opacity: 0.6; }

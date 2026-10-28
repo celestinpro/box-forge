@@ -590,7 +590,7 @@ export function tokenInsertPage() {
     const byId = new Map(tokens.map((t) => [t.uid, t]));
     const numberOf = new Map(state.tokens.map((t, i) => [t.uid, i + 1]));
     const { tray } = A;
-    const pad = 6;
+    const pad = 12; // room for the rotation handle near the edges
     // While dragging, keep the view still (in "fit" mode the tray resizes as you drag).
     const box = drag?.viewBox ?? `${tray.x0 - pad} ${-(tray.y0 + tray.h) - pad} ${tray.w + 2 * pad} ${tray.h + 2 * pad}`;
     if (drag && !drag.viewBox) drag.viewBox = box;
@@ -624,6 +624,24 @@ export function tokenInsertPage() {
       );
       g.append(grp);
     }
+    // Rotation handle on the selected pocket: drag it to turn the pocket to any angle.
+    const sel = state.items.find((i) => i.key === selected);
+    const selToken = sel && byId.get(sel.tokenId);
+    if (selToken) {
+      const reach = Math.max(...selToken.points.map(([x, y]) => Math.hypot(x, y))) + 5;
+      const a = ((sel.angle + 90) * Math.PI) / 180; // "up" in the token's own frame
+      const hx = sel.x + reach * Math.cos(a);
+      const hy = sel.y + reach * Math.sin(a);
+      g.append(
+        svg(
+          "g",
+          { class: "rotate-handle", "data-key": sel.key },
+          svg("line", { x1: sel.x, y1: sel.y, x2: hx, y2: hy }),
+          svg("circle", { cx: hx, cy: hy, r: 5, class: "hit" }),
+          svg("circle", { cx: hx, cy: hy, r: 2.2, class: "knob" })
+        )
+      );
+    }
     root.append(g);
     layoutView.replaceChildren(root);
     renderToolbar();
@@ -633,7 +651,8 @@ export function tokenInsertPage() {
   // Dragging pockets.
   let drag = null;
   layoutView.addEventListener("pointerdown", (e) => {
-    const grp = e.target.closest?.("g.pocket");
+    const handle = e.target.closest?.("g.rotate-handle");
+    const grp = handle || e.target.closest?.("g.pocket");
     if (!grp) {
       if (selected) {
         selected = null;
@@ -654,12 +673,25 @@ export function tokenInsertPage() {
     };
     selected = key;
     const viewBox = layoutView.querySelector("svg").getAttribute("viewBox");
-    drag = { key, item, start: toMm(e), from: [item.x, item.y], toMm, moved: false, viewBox };
+    const start = toMm(e);
+    const pointerAngle = (p) => (Math.atan2(p[1] - item.y, p[0] - item.x) * 180) / Math.PI;
+    drag = handle
+      ? { key, item, rotate: true, offset: pointerAngle(start) - item.angle, pointerAngle, toMm, moved: false, viewBox }
+      : { key, item, start, from: [item.x, item.y], toMm, moved: false, viewBox };
     layoutView.setPointerCapture(e.pointerId);
     renderLayout();
   });
   layoutView.addEventListener("pointermove", (e) => {
     if (!drag) return;
+    if (drag.rotate) {
+      // Any angle; hold Shift to snap to 15° steps.
+      let a = drag.pointerAngle(drag.toMm(e)) - drag.offset;
+      a = e.shiftKey ? Math.round(a / 15) * 15 : Math.round(a * 10) / 10;
+      drag.item.angle = ((a % 360) + 360) % 360;
+      drag.moved = true;
+      requestRender();
+      return;
+    }
     const [x, y] = drag.toMm(e);
     drag.item.x = drag.from[0] + x - drag.start[0];
     drag.item.y = drag.from[1] + y - drag.start[1];
@@ -715,6 +747,18 @@ export function tokenInsertPage() {
     changed();
     renderLayout();
   }
+  /** Exact angle for the selected pocket (applied on Enter or leaving the box). */
+  function angleField(it) {
+    const inp = h("input", { type: "number", inputmode: "decimal", step: 1, value: Math.round(it.angle * 10) / 10, "aria-label": "Pocket angle in degrees" });
+    inp.addEventListener("change", () => {
+      const v = parseFloat(inp.value);
+      if (!Number.isFinite(v)) return;
+      it.angle = (((Math.round(v * 10) / 10) % 360) + 360) % 360;
+      changed();
+      renderLayout();
+    });
+    return h("label.angle-field", "Angle", inp, h("span", "°"));
+  }
   function renderToolbar() {
     const it = state.items.find((i) => i.key === selected);
     const t = it && state.tokens.find((k) => k.uid === it.tokenId);
@@ -724,12 +768,13 @@ export function tokenInsertPage() {
         ? h(
             "div.tools",
             h("strong", t?.name ?? "Pocket"),
+            angleField(it),
             h("button", { type: "button", on: { click: () => rotateSelected(15) } }, "Rotate left"),
             h("button", { type: "button", on: { click: () => rotateSelected(-15) } }, "Rotate right"),
             h("button", { type: "button", on: { click: () => rotateSelected(90) } }, "Turn 90°"),
             n && n.options > 1 ? h("button", { type: "button", on: { click: moveNotch } }, "Move finger notch") : null
           )
-        : h("p.hint", "Drag pockets to move them. Click one to rotate it or move its finger notch. Arrow keys nudge, [ and ] rotate.")
+        : h("p.hint", "Drag pockets to move them. Click one, then drag its round handle to turn it to any angle (hold Shift for 15° steps), or move its finger notch. Arrow keys nudge, [ and ] rotate.")
     );
   }
 
